@@ -1,0 +1,4 @@
+# SPA fallback for Cloudflare Pages.
+# Static files (anything in dist/ that exists) are served as-is.
+# Any other path falls back to index.html so wouter can handle routing.
+/*    /index.html   200
