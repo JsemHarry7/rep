@@ -1,0 +1,227 @@
+@import "tailwindcss";
+
+/* ---------- Design tokens ----------
+ *
+ * Single-hue family per mode. Sidebar is one notch off main — close
+ * enough to belong, different enough to read as a distinct zone.
+ *
+ * Hierarchy:
+ *   surface         main content area
+ *   surface-inset   sidebar / aside (slightly off main)
+ *   surface-elev    cards / popovers (slightly elevated from main)
+ *
+ * Navy (#1f2b44) plays two different roles per mode:
+ *   - Light: accent / button bg / link / focus ring — clearly secondary
+ *   - Dark: border / divider — part of the navy-tinted base ladder
+ */
+@theme {
+  /* ---- Light (default) ---- cool slate family, same hue DNA as the
+   * brand navy (#1f2b44 ≈ slate-900). Sharp, tech, neutral — not paper. */
+  --color-surface: #f8fafc;
+  --color-surface-elev: #ffffff;
+  --color-surface-inset: #eef2f7;
+
+  --color-line: #e2e8f0;
+  --color-line-strong: #cbd5e1;
+
+  --color-ink: #0f172a;
+  --color-ink-dim: #475569;
+  --color-ink-muted: #94a3b8;
+
+  --color-navy: #1f2b44;
+  --color-navy-fg: #f8fafc;
+
+  --color-ok: #15803d;
+  --color-bad: #b91c1c;
+
+  /* accent — warm clay/terracotta. Permanent palette member used to
+     break the cool navy+slate monotony. Apply to "warmth" signals:
+     streak, due cards, heatmap top bucket, hover highlights. */
+  --color-accent: #c97f5a;
+  --color-accent-fg: #faf7f0;
+
+  /* Sidebar / nav chrome — duotone in light, recessed surface in dark.
+     Distinct family so it does not leak into content surfaces. */
+  --color-chrome: #1f2b44;
+  --color-chrome-fg: #e2e8f0;
+  --color-chrome-fg-dim: #cbd5e1;
+  --color-chrome-fg-muted: #94a3b8;
+  --color-chrome-line: #2d3d5f;
+
+  /* fonts */
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-serif: "Instrument Serif", "Iowan Old Style", Georgia, serif;
+
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 8px;
+}
+
+/* ---------- Light root ---------- */
+:root {
+  color-scheme: light;
+}
+
+/* ---------- Dark ---------- */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --color-surface: #11192a;
+  --color-surface-elev: #1a2338;
+  --color-surface-inset: #0c1322;
+
+  --color-line: #1f2b44;
+  --color-line-strong: #2d3d5f;
+
+  --color-ink: #d8dae0;
+  --color-ink-dim: #7d8499;
+  --color-ink-muted: #4d5469;
+
+  /* In dark mode the brand navy IS the line color above. For focus/link
+     accents we lift to a brighter tinted navy so it reads against the
+     dark surfaces. */
+  --color-navy: #5c7eb8;
+  --color-navy-fg: #11192a;
+
+  --color-ok: #7ba87c;
+  --color-bad: #c97064;
+
+  /* Accent lifted for dark — needs to read against deep navy. */
+  --color-accent: #d4a584;
+  --color-accent-fg: #11192a;
+
+  /* Dark: chrome is a slightly-recessed surface, NOT a strong contrast panel. */
+  --color-chrome: #0c1322;
+  --color-chrome-fg: #d8dae0;
+  --color-chrome-fg-dim: #7d8499;
+  --color-chrome-fg-muted: #4d5469;
+  --color-chrome-line: #1f2b44;
+}
+
+/* ---------- Base ---------- */
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overscroll-behavior: none;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+::selection {
+  background: var(--color-navy);
+  color: var(--color-navy-fg);
+}
+
+/* Scrollbar — minimal */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-line);
+  border-radius: var(--radius-sm);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-line-strong);
+}
+
+*:focus-visible {
+  outline: 1px solid var(--color-navy);
+  outline-offset: 2px;
+}
+
+button,
+[role="button"] {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+/* ---------- Utility primitives ---------- */
+@utility hairline {
+  border: 1px solid var(--color-line);
+}
+
+@utility hairline-strong {
+  border: 1px solid var(--color-line-strong);
+}
+
+@utility display {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  letter-spacing: -0.015em;
+  line-height: 1.02;
+}
+
+@utility prose {
+  font-family: var(--font-sans);
+  line-height: 1.6;
+}
+
+@utility data {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "calt" 0;
+}
+
+/* Form controls — single source of truth so inputs/textareas across
+   the Add UI stay consistent. Focus uses navy for both modes. */
+@utility form-input {
+  width: 100%;
+  border: 1px solid var(--color-line);
+  background: var(--color-surface-elev);
+  color: var(--color-ink);
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-md);
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  outline: none;
+  transition: border-color 120ms ease;
+
+  &:focus {
+    border-color: var(--color-navy);
+  }
+  &::placeholder {
+    color: var(--color-ink-muted);
+  }
+}
+
+@utility form-textarea {
+  width: 100%;
+  border: 1px solid var(--color-line);
+  background: var(--color-surface-elev);
+  color: var(--color-ink);
+  padding: 0.75rem;
+  border-radius: var(--radius-md);
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  outline: none;
+  resize: vertical;
+  transition: border-color 120ms ease;
+
+  &:focus {
+    border-color: var(--color-navy);
+  }
+  &::placeholder {
+    color: var(--color-ink-muted);
+  }
+}
