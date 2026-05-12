@@ -1,9 +1,15 @@
 /* ---------- Sync (frontend) ----------
  *
  * Pull/push the full Zustand store snapshot to/from the backend. No
- * field-level merging — last-write-wins by user action. The Cloud Sync
- * UI in Settings is the only entry point; auto-sync is intentionally
- * NOT wired up (yet) to avoid surprise conflicts on multi-device use.
+ * field-level merging — last-write-wins by user action.
+ *
+ * The whole UserState (displayName, dailyGoal, tourSeen, landingSeen,
+ * streak, xp, level, ...) is part of the snapshot, so those fields
+ * propagate across devices the moment a sync round completes.
+ *
+ * Manual push/pull buttons in Settings remain the foolproof entry
+ * point; autoSync.ts adds a debounced auto-push on top for the common
+ * "I just want my edits to show up on my other device" case.
  */
 
 import { useAppStore } from "@/lib/store";
@@ -32,6 +38,15 @@ export interface SyncResult {
   updatedAt?: number;
 }
 
+/* ---------- Apply-remote guard ----------
+ * applySnapshot() temporarily flips this so the auto-sync subscriber
+ * can skip the resulting store changes — otherwise pulling from cloud
+ * would immediately re-push the same data. */
+let applyingRemote = false;
+export function isApplyingRemote(): boolean {
+  return applyingRemote;
+}
+
 function takeSnapshot(): Snapshot {
   const s = useAppStore.getState();
   return {
@@ -45,15 +60,20 @@ function takeSnapshot(): Snapshot {
 }
 
 function applySnapshot(snap: Partial<Snapshot>) {
-  const cur = useAppStore.getState();
-  useAppStore.setState({
-    reviews: snap.reviews ?? [],
-    userDecks: snap.userDecks ?? [],
-    userCards: snap.userCards ?? [],
-    srsState: snap.srsState ?? {},
-    user: { ...cur.user, ...(snap.user ?? {}) },
-    deadlines: snap.deadlines ?? [],
-  });
+  applyingRemote = true;
+  try {
+    const cur = useAppStore.getState();
+    useAppStore.setState({
+      reviews: snap.reviews ?? [],
+      userDecks: snap.userDecks ?? [],
+      userCards: snap.userCards ?? [],
+      srsState: snap.srsState ?? {},
+      user: { ...cur.user, ...(snap.user ?? {}) },
+      deadlines: snap.deadlines ?? [],
+    });
+  } finally {
+    applyingRemote = false;
+  }
 }
 
 export async function pushToCloud(): Promise<SyncResult> {

@@ -28,6 +28,7 @@ export function MobileTabs() {
         pb-[env(safe-area-inset-bottom)]
         shrink-0
       "
+      aria-label="hlavní navigace"
     >
       {tabs.map((t) => {
         const active = activeView === t.id;
@@ -35,12 +36,13 @@ export function MobileTabs() {
           <button
             key={t.id}
             onClick={() => navigate(t.path)}
+            aria-current={active ? "page" : undefined}
             className={`
               relative
-              py-3 px-1
-              flex items-center justify-center
-              min-h-[48px]
-              data text-[10px] uppercase tracking-widest
+              py-4 px-1
+              flex flex-col items-center justify-center gap-1
+              min-h-[60px]
+              data text-[13px] font-medium uppercase tracking-widest
               transition-colors
               ${active ? "text-chrome-fg" : "text-chrome-fg-muted"}
               active:bg-chrome-line
@@ -49,7 +51,7 @@ export function MobileTabs() {
             {active && (
               <span
                 aria-hidden
-                className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-px bg-chrome-fg"
+                className="absolute top-0 left-1/2 -translate-x-1/2 w-10 h-[2px] bg-accent"
               />
             )}
             <span>{t.label}</span>

@@ -1,4 +1,5 @@
 import { useCombinedContent } from "@/lib/data";
+import { SyncIndicator } from "./SyncIndicator";
 
 export function StatusBar() {
   const { decks, cards, builtin } = useCombinedContent();
@@ -29,6 +30,9 @@ export function StatusBar() {
           issues.length > 0 ? `${errorCount}E / ${warnCount}W` : undefined
         }
       />
+      <div className="ml-auto">
+        <SyncIndicator />
+      </div>
     </div>
   );
 }

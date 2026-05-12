@@ -6,7 +6,11 @@ import { MobileTopBar } from "@/components/MobileTopBar";
 import { MobileTabs } from "@/components/MobileTabs";
 import { useCombinedContent } from "@/lib/data";
 import { useAppStore } from "@/lib/store";
+import { useCloudAuth } from "@/lib/cloudAuth";
+import { startAutoSync } from "@/lib/autoSync";
 import type { ReviewMode } from "@/types";
+
+const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
 // Eagerly loaded: chrome that's always present.
 // Lazily loaded: every route page + the walkthrough overlay. Cuts the
@@ -71,6 +75,16 @@ export function pathToView(path: string): AppView | null {
 
 /* ---------- Root ---------- */
 export function App() {
+  // Bootstrap cloud sync once per app load. Only do anything if a Google
+  // client ID was injected at build time — otherwise no backend, no need
+  // to hit /api/auth/me on every cold open.
+  useEffect(() => {
+    if (!CLIENT_ID) return;
+    const auth = useCloudAuth.getState();
+    if (auth.status === "unknown") void auth.init();
+    startAutoSync();
+  }, []);
+
   return (
     <Suspense fallback={<RouteLoader />}>
       <Switch>

@@ -1,5 +1,6 @@
 import { useLocation } from "wouter";
 import { ThemeToggle } from "./ThemeToggle";
+import { SyncIndicator } from "./SyncIndicator";
 
 export function MobileTopBar() {
   const [, navigate] = useLocation();
@@ -11,7 +12,7 @@ export function MobileTopBar() {
         bg-chrome border-b border-chrome-line
         px-5
         pt-[max(0.75rem,env(safe-area-inset-top))] pb-3
-        flex items-center justify-between
+        flex items-center justify-between gap-3
         shrink-0
       "
     >
@@ -33,7 +34,10 @@ export function MobileTopBar() {
           v0.0.1
         </span>
       </button>
-      <ThemeToggle />
+      <div className="flex items-center gap-4">
+        <SyncIndicator />
+        <ThemeToggle />
+      </div>
     </header>
   );
 }
