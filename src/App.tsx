@@ -114,15 +114,21 @@ function AppShell() {
   const updateUser = useAppStore((s) => s.updateUser);
 
   // Mobile chrome (top + bottom bars) is position:fixed so it survives
-  // mobile-browser URL-bar collapse and on-screen keyboard shifts. The
-  // main scroll area gets matching top/bottom padding on mobile so
-  // content isn't hidden underneath. Desktop sidebar layout untouched.
+  // mobile-browser URL-bar collapse and on-screen keyboard shifts.
+  // Fixed elements are positioned relative to the viewport, so the
+  // outer container's overflow-hidden + h-full does NOT clip them —
+  // we can keep the original internal-scroll layout (which is what
+  // makes [scrollbar-gutter:stable] work and prevents body-level
+  // scrollbars from shifting page width).
+  //
+  // The main element gets mobile-only top/bottom padding so its
+  // content isn't hidden behind the fixed bars.
   const mobilePadding = inReview
     ? ""
     : "pt-[calc(44px+env(safe-area-inset-top))] pb-[calc(60px+env(safe-area-inset-bottom))] md:pt-0 md:pb-0";
 
   return (
-    <div className="min-h-dvh flex flex-col bg-surface">
+    <div className="h-full min-h-dvh flex flex-col bg-surface overflow-hidden">
       <a
         href="#main-content"
         className="sr-only focus-visible-only focus:fixed focus:left-2 focus:top-2 focus:z-[200] focus:bg-navy focus:text-navy-fg focus:px-3 focus:py-2 focus:rounded-sm focus:text-sm"
@@ -136,7 +142,7 @@ function AppShell() {
         <Sidebar />
         <main
           id="main-content"
-          className={`flex-1 md:overflow-y-auto bg-surface [scrollbar-gutter:stable] ${mobilePadding}`}
+          className={`flex-1 overflow-y-auto bg-surface [scrollbar-gutter:stable] ${mobilePadding}`}
         >
           <Suspense fallback={<RouteLoader />}>
             <Switch>
