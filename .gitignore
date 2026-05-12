@@ -27,3 +27,6 @@ pnpm-debug.log*
 
 # os
 Thumbs.db
+
+# planning docs (personal — not for public repo)
+ROADMAP.md
