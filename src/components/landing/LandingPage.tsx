@@ -20,7 +20,7 @@ const features: { title: string; body: string }[] = [
   },
   {
     title: "Statistiky a termíny",
-    body: "Heatmap aktivity, mastery podle decku, projekce k tvým termínům. Pro stats-obsessed bytostně.",
+    body: "Heatmap aktivity, mastery podle decku, projekce k tvým termínům. Pro stats-obsessed lidi.",
   },
 ];
 
@@ -72,6 +72,7 @@ export function LandingPage() {
         </div>
       </header>
 
+      <main id="main-content">
       {/* Hero — split layout: copy on left, sample card on right */}
       <section className="border-b border-line">
         <div className="max-w-5xl mx-auto px-6 sm:px-10 lg:px-16 py-16 sm:py-24 grid lg:grid-cols-5 gap-10 lg:gap-16 items-center">
@@ -162,9 +163,9 @@ export function LandingPage() {
       <section className="border-b border-line">
         <div className="max-w-5xl mx-auto px-6 sm:px-10 lg:px-16 py-14 flex flex-wrap items-baseline gap-x-8 gap-y-4 justify-between">
           <div>
-            <h3 className="display text-3xl sm:text-4xl text-ink mb-1">
+            <h2 className="display text-3xl sm:text-4xl text-ink mb-1">
               <span className="italic text-accent">Připraven?</span>
-            </h3>
+            </h2>
             <p className="prose text-sm text-ink-dim">
               Data zůstanou lokálně, dokud nezapneš cloud sync (M6).
             </p>
@@ -174,6 +175,7 @@ export function LandingPage() {
           </Button>
         </div>
       </section>
+      </main>
 
       <OnboardingDialog
         open={onboardingOpen}
@@ -223,9 +225,12 @@ function SampleCard() {
         <div className="data text-[10px] uppercase tracking-widest text-accent mb-3">
           Q
         </div>
-        <h3 className="display text-2xl text-ink mb-5 leading-tight">
+        {/* Visually a heading but not semantically — this is mock card data
+            inside a preview, not a real section header. Keeping it out of
+            the heading outline avoids a level skip after the hero h1. */}
+        <div className="display text-2xl text-ink mb-5 leading-tight">
           Kdo napsal tragédii Romeo a Julie?
-        </h3>
+        </div>
         <hr className="border-line mb-4" />
         <p className="prose text-base text-ink-dim">
           William Shakespeare. Datace cca 1595, raná tragédie.

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { GoogleLogin } from "@react-oauth/google";
+import { GoogleLogin, GoogleOAuthProvider } from "@react-oauth/google";
 import { useCloudAuth } from "@/lib/cloudAuth";
 import { pullFromCloud, pushToCloud } from "@/lib/sync";
 import { Button } from "@/components/ui/Button";
@@ -12,8 +12,40 @@ const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
  * No auto-sync (yet) — user explicitly pushes/pulls. This avoids the
  * "I edited on phone, opened laptop, lost work" trap until conflict
  * resolution is properly designed.
+ *
+ * GoogleOAuthProvider is mounted here (lazily) rather than at app root
+ * so the Google Identity Services script (~98 KB + third-party cookies)
+ * only loads when the user actually visits Settings. Cuts cold-load
+ * weight on Landing/Dashboard significantly.
  */
 export function CloudSync() {
+  // Cheap early return — if CLIENT_ID is missing we render the "not
+  // configured" panel without ever mounting the provider, so the GIS
+  // script never loads.
+  if (!CLIENT_ID) {
+    return (
+      <div className="hairline rounded-md p-4 sm:p-5 bg-surface-elev">
+        <div className="data text-[10px] uppercase tracking-widest text-ink-muted mb-1">
+          cloud sync · nenakonfigurovaný
+        </div>
+        <p className="prose text-sm text-ink-dim max-w-prose">
+          Tato instalace nemá nastavený{" "}
+          <span className="data">VITE_GOOGLE_CLIENT_ID</span>. Cloud sync
+          nefunguje. Local-first režim funguje normálně — záloha přes JSON
+          export.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <GoogleOAuthProvider clientId={CLIENT_ID}>
+      <CloudSyncContent />
+    </GoogleOAuthProvider>
+  );
+}
+
+function CloudSyncContent() {
   const { user, status, errorMessage, signIn, signOut, init } = useCloudAuth();
   const [syncStatus, setSyncStatus] = useState<{ ok: boolean; text: string } | null>(
     null,
@@ -51,22 +83,6 @@ export function CloudSync() {
     setBusy(null);
     window.setTimeout(() => setSyncStatus(null), 5000);
   };
-
-  if (!CLIENT_ID) {
-    return (
-      <div className="hairline rounded-md p-4 sm:p-5 bg-surface-elev">
-        <div className="data text-[10px] uppercase tracking-widest text-ink-muted mb-1">
-          cloud sync · nenakonfigurovaný
-        </div>
-        <p className="prose text-sm text-ink-dim max-w-prose">
-          Tato instalace nemá nastavený{" "}
-          <span className="data">VITE_GOOGLE_CLIENT_ID</span>. Cloud sync
-          nefunguje. Local-first režim funguje normálně — záloha přes JSON
-          export.
-        </p>
-      </div>
-    );
-  }
 
   if (status === "not-configured") {
     return (

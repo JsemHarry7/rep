@@ -74,18 +74,21 @@
   --color-line: #1f2b44;
   --color-line-strong: #2d3d5f;
 
+  /* All text colors below cleared WCAG AA (4.5:1) against both --color-surface
+     and --color-surface-elev. Previous values (#7d8499 / #4d5469) sat at
+     ~4.2 / ~2.3 and were getting called out by Lighthouse. */
   --color-ink: #d8dae0;
-  --color-ink-dim: #7d8499;
-  --color-ink-muted: #4d5469;
+  --color-ink-dim: #9aa3b8;
+  --color-ink-muted: #7e87a0;
 
   /* In dark mode the brand navy IS the line color above. For focus/link
      accents we lift to a brighter tinted navy so it reads against the
-     dark surfaces. */
-  --color-navy: #5c7eb8;
+     dark surfaces (4.5:1 on #11192a). */
+  --color-navy: #7591c4;
   --color-navy-fg: #11192a;
 
   --color-ok: #7ba87c;
-  --color-bad: #c97064;
+  --color-bad: #d68b80;
 
   /* Accent lifted for dark — needs to read against deep navy. */
   --color-accent: #d4a584;
@@ -94,8 +97,8 @@
   /* Dark: chrome is a slightly-recessed surface, NOT a strong contrast panel. */
   --color-chrome: #0c1322;
   --color-chrome-fg: #d8dae0;
-  --color-chrome-fg-dim: #7d8499;
-  --color-chrome-fg-muted: #4d5469;
+  --color-chrome-fg-dim: #9aa3b8;
+  --color-chrome-fg-muted: #7e87a0;
   --color-chrome-line: #1f2b44;
 }
 

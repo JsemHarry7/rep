@@ -1,6 +1,5 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { GoogleOAuthProvider } from "@react-oauth/google";
 import "./index.css";
 import { initTheme } from "@/lib/theme";
 import { App } from "./App";
@@ -36,19 +35,13 @@ if (typeof console !== "undefined") {
 
 const root = createRoot(document.getElementById("root")!);
 
-const tree = (
+// GoogleOAuthProvider used to wrap the whole tree here, but that loads
+// accounts.google.com/gsi/client (~98 KB + 21 third-party cookies) on
+// every cold visit. The provider is now mounted lazily inside CloudSync
+// — the only consumer of the script — so Landing / Dashboard / Review /
+// etc. never pay that cost.
+root.render(
   <StrictMode>
     <App />
-  </StrictMode>
-);
-
-// Only wrap with GoogleOAuthProvider if a client id was injected at
-// build time. Without it, the provider would crash; we'd rather render
-// the rest of the app and let CloudSync show a "not configured" state.
-root.render(
-  GOOGLE_CLIENT_ID ? (
-    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>{tree}</GoogleOAuthProvider>
-  ) : (
-    tree
-  ),
+  </StrictMode>,
 );
