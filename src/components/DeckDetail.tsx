@@ -284,16 +284,24 @@ export function DeckDetail({
                   </span>
                 )}
                 {isLocal && (
-                  <span className="flex items-center gap-1 shrink-0">
+                  <span className="flex items-center gap-0.5 shrink-0">
                     <button
                       onClick={() => setEditCardOpen(c)}
-                      className="data text-[10px] uppercase tracking-widest text-ink-muted hover:text-accent transition-colors px-2 py-1"
+                      className="
+                        data text-[11px] sm:text-[10px] uppercase tracking-widest
+                        text-ink-muted hover:text-accent transition-colors
+                        px-3 py-2 min-h-[40px]
+                      "
                     >
                       upravit
                     </button>
                     <button
                       onClick={() => setDeleteCardOpen(c)}
-                      className="data text-[10px] uppercase tracking-widest text-ink-muted hover:text-bad transition-colors px-2 py-1"
+                      className="
+                        data text-[11px] sm:text-[10px] uppercase tracking-widest
+                        text-ink-muted hover:text-bad transition-colors
+                        px-3 py-2 min-h-[40px]
+                      "
                     >
                       smazat
                     </button>

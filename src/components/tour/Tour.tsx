@@ -229,7 +229,11 @@ export function Tour({ onComplete }: Props) {
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <button
             onClick={onComplete}
-            className="data text-[10px] uppercase tracking-widest text-ink-muted hover:text-ink transition-colors"
+            className="
+              data text-[10px] uppercase tracking-widest
+              text-ink-muted hover:text-ink transition-colors
+              min-h-[40px] px-2 -mx-2
+            "
           >
             přeskočit
           </button>

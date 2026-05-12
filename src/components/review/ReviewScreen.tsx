@@ -310,11 +310,13 @@ function EmptyState({ deck, mode, srsState, cards, onExit }: EmptyProps) {
             text-ink hover:text-navy
             transition-colors
             flex items-center gap-2
+            min-h-[44px] px-3 -mx-3
           "
         >
-          <kbd className="hairline rounded-sm px-1.5 py-0.5 text-[10px] leading-none bg-surface-elev text-ink-dim">
+          <kbd className="hidden sm:inline-block hairline rounded-sm px-1.5 py-0.5 text-[10px] leading-none bg-surface-elev text-ink-dim">
             esc
           </kbd>
+          <span aria-hidden className="sm:hidden">←</span>
           zpět
         </button>
       </div>
@@ -417,11 +419,13 @@ function SessionSummary({
             text-ink hover:text-navy
             transition-colors
             flex items-center gap-2
+            min-h-[44px] px-3 -mx-3
           "
         >
-          <kbd className="hairline rounded-sm px-1.5 py-0.5 text-[10px] leading-none bg-surface-elev text-ink-dim">
+          <kbd className="hidden sm:inline-block hairline rounded-sm px-1.5 py-0.5 text-[10px] leading-none bg-surface-elev text-ink-dim">
             esc
           </kbd>
+          <span aria-hidden className="sm:hidden">←</span>
           zpět
         </button>
       </div>

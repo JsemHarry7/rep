@@ -48,10 +48,16 @@ export function Modal({ open, onClose, title, children, maxWidth = "max-w-lg" }:
             <h2 className="display text-xl text-ink">{title}</h2>
             <button
               onClick={onClose}
-              className="data text-[10px] uppercase tracking-widest text-ink-muted hover:text-ink transition-colors"
+              className="
+                data text-[10px] uppercase tracking-widest
+                text-ink-muted hover:text-ink transition-colors
+                min-h-[44px] min-w-[44px] -mr-2 px-2
+                flex items-center gap-1.5
+              "
               aria-label="zavřít"
             >
-              zavřít ×
+              <span className="hidden sm:inline">zavřít</span>
+              <span aria-hidden className="text-lg leading-none">×</span>
             </button>
           </div>
         )}
