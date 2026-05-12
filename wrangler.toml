@@ -1,0 +1,14 @@
+# Cloudflare Pages config — D1 binding + compatibility flags.
+#
+# After creating the D1 database (`wrangler d1 create rep`), paste the
+# returned database_id below and commit. The binding name `DB` is what
+# Functions use to access the database (context.env.DB).
+
+name = "rep"
+compatibility_date = "2025-01-01"
+pages_build_output_dir = "dist"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "rep"
+database_id = "REPLACE_WITH_REAL_DATABASE_ID"

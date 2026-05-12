@@ -5,6 +5,7 @@ import { downloadBackup, importBackup } from "@/lib/backup";
 import type { Deadline } from "@/types";
 import { Button } from "@/components/ui/Button";
 import { PWAInstall } from "@/components/PWAInstall";
+import { CloudSync } from "@/components/settings/CloudSync";
 
 export function SettingsPage() {
   const [, navigate] = useLocation();
@@ -149,6 +150,13 @@ export function SettingsPage() {
             ))}
           </ul>
         )}
+      </section>
+
+      <section className="mb-12">
+        <h2 className="data text-[10px] uppercase tracking-widest text-ink-muted mb-3">
+          cloud sync
+        </h2>
+        <CloudSync />
       </section>
 
       <section className="mb-12">

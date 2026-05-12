@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { useLocation } from "wouter";
 import { useTheme } from "@/lib/theme";
 import { useAppStore } from "@/lib/store";
 import { Button } from "@/components/ui/Button";
+import { OnboardingDialog } from "@/components/onboarding/OnboardingDialog";
 
 const features: { title: string; body: string }[] = [
   {
@@ -27,14 +29,27 @@ export function LandingPage() {
   const user = useAppStore((s) => s.user);
   const updateUser = useAppStore((s) => s.updateUser);
   const openTour = useAppStore((s) => s.openTour);
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
 
   const onStart = () => {
+    // First-time users (no tour seen yet) get the name onboarding step
+    // before being dropped into the dashboard + walkthrough.
+    if (!user.tourSeen) {
+      setOnboardingOpen(true);
+      return;
+    }
     updateUser({ landingSeen: true });
     navigate("/home");
-    // First-time users get the walkthrough auto-opened once.
-    if (!user.tourSeen) {
-      setTimeout(() => openTour(), 600);
-    }
+  };
+
+  const handleOnboardingComplete = (name: string | null) => {
+    setOnboardingOpen(false);
+    const patch: Partial<typeof user> = { landingSeen: true };
+    if (name) patch.displayName = name;
+    updateUser(patch);
+    navigate("/home");
+    // Wait for /home to render, then open tour.
+    window.setTimeout(() => openTour(), 600);
   };
 
   return (
@@ -159,6 +174,11 @@ export function LandingPage() {
           </Button>
         </div>
       </section>
+
+      <OnboardingDialog
+        open={onboardingOpen}
+        onComplete={handleOnboardingComplete}
+      />
 
       <footer>
         <div className="max-w-5xl mx-auto px-6 sm:px-10 lg:px-16 py-6 flex items-center justify-between gap-3 data text-[10px] uppercase tracking-widest text-ink-muted flex-wrap">

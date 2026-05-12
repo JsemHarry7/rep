@@ -1,0 +1,24 @@
+-- D1 schema for rep cloud sync.
+-- Apply with: wrangler d1 execute rep --file=./schema.sql --remote
+-- (drop --remote for local dev DB)
+
+CREATE TABLE IF NOT EXISTS users (
+  id TEXT PRIMARY KEY,            -- Google "sub" claim (stable user id)
+  email TEXT UNIQUE NOT NULL,
+  name TEXT,
+  created_at INTEGER NOT NULL,
+  last_sync_at INTEGER
+);
+
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+
+-- Single JSON blob per user containing the full Zustand store snapshot
+-- (reviews, decks, cards, srsState, deadlines, user prefs).
+-- Conflict resolution: last-write-wins by `updated_at`.
+CREATE TABLE IF NOT EXISTS user_state (
+  user_id TEXT PRIMARY KEY,
+  data_json TEXT NOT NULL,
+  updated_at INTEGER NOT NULL,
+  client_id TEXT,                 -- which device wrote this; for diagnostics
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);

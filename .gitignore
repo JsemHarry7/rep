@@ -23,6 +23,7 @@ pnpm-debug.log*
 .env.*.local
 .dev.vars
 .wrangler
+.wrangler/state
 
 # os
 Thumbs.db

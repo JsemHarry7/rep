@@ -94,9 +94,7 @@ const emptyUser: UserState = {
   freezesAvailable: 0,
 };
 
-const defaultDeadlines: Deadline[] = [
-  { id: "maturita", name: "Maturita", date: "2026-05-25" },
-];
+const defaultDeadlines: Deadline[] = [];
 
 export const useAppStore = create<AppState>()(
   persist(

@@ -28,4 +28,11 @@ npm run preview
 
 ## Deploy
 
-(TBD v M6 — Cloudflare Pages + Functions + D1 setup s detailním návodem.)
+The app auto-deploys to Cloudflare Pages on git push. The first time
+needs setup — see [DEPLOY.md](./DEPLOY.md) for step-by-step instructions.
+
+For local-first use (no cloud sync), no setup is needed beyond
+`npm install && npm run dev`. Data lives in `localStorage`.
+
+For cloud sync (multi-device), follow DEPLOY.md to wire up the D1
+database, Google OAuth credentials, and env vars.
