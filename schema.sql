@@ -57,3 +57,22 @@ CREATE TABLE IF NOT EXISTS shared_decks (
 
 CREATE INDEX IF NOT EXISTS idx_shared_decks_owner
   ON shared_decks(owner_id, created_at DESC);
+
+-- Server-side snapshot history. On every push, the prior user_state
+-- row is archived here before being overwritten — so "I accidentally
+-- pushed an empty local over my full cloud" is recoverable from
+-- Settings → Cloud zálohy → Obnovit. Kept to the last 5 per user
+-- (pruned by the push endpoint).
+CREATE TABLE IF NOT EXISTS user_state_history (
+  user_id TEXT NOT NULL,
+  saved_at INTEGER NOT NULL,        -- when this snapshot was archived
+  data_json TEXT NOT NULL,
+  card_count INTEGER NOT NULL DEFAULT 0,
+  deck_count INTEGER NOT NULL DEFAULT 0,
+  client_id TEXT,
+  PRIMARY KEY (user_id, saved_at),
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_history_user
+  ON user_state_history(user_id, saved_at DESC);

@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { GoogleLogin, GoogleOAuthProvider } from "@react-oauth/google";
 import { getLastRejectedEmail, useCloudAuth } from "@/lib/cloudAuth";
-import { pullFromCloud, pushToCloud } from "@/lib/sync";
+import { fetchCloudMeta, pullFromCloud, pushToCloud, type CloudMeta } from "@/lib/sync";
+import { useAppStore } from "@/lib/store";
 import { Button } from "@/components/ui/Button";
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
@@ -47,17 +48,45 @@ export function CloudSync() {
 
 function CloudSyncContent() {
   const { user, status, errorMessage, signIn, signOut, init } = useCloudAuth();
+  const localCardCount = useAppStore((s) => s.userCards.length);
+  const localDeckCount = useAppStore((s) => s.userDecks.length);
   const [syncStatus, setSyncStatus] = useState<{ ok: boolean; text: string } | null>(
     null,
   );
   const [busy, setBusy] = useState<"push" | "pull" | null>(null);
+  const [cloudMeta, setCloudMeta] = useState<CloudMeta | null>(null);
 
   // Initialize auth state on mount.
   useEffect(() => {
     if (status === "unknown") init();
   }, [status, init]);
 
+  // Refresh the cloud-side counts whenever sign-in flips on, after a
+  // sync finishes, or when local counts change (so the comparison stays
+  // honest as the user edits).
+  useEffect(() => {
+    if (status !== "signed-in") {
+      setCloudMeta(null);
+      return;
+    }
+    void fetchCloudMeta().then(setCloudMeta);
+  }, [status, busy]);
+
   const handlePush = async () => {
+    // Foolproof check: if we know cloud has more cards than local,
+    // pushing would shrink the remote dataset. Force the user to
+    // actively confirm with both numbers visible — the friend's
+    // "kliknul jsem na nahrát omylem" flow gets caught here.
+    if (cloudMeta && cloudMeta.cardCount > localCardCount) {
+      const lossDelta = cloudMeta.cardCount - localCardCount;
+      const ok = confirm(
+        `⚠ Push by zmenšil cloud z ${cloudMeta.cardCount} karet na ${localCardCount}.\n\n` +
+          `Lokálně máš méně karet než v cloudu (${lossDelta} karet by se ztratilo). ` +
+          `Pokud chceš stáhnout cloud, použij ↓ Stáhnout. Jinak pokračuj jen pokud opravdu víš co děláš.\n\n` +
+          `Záloha předchozího cloud stavu zůstává pár dní v Cloud zálohách (Settings).`,
+      );
+      if (!ok) return;
+    }
     setBusy("push");
     setSyncStatus(null);
     const r = await pushToCloud();
@@ -160,14 +189,49 @@ function CloudSyncContent() {
             Odhlásit
           </Button>
         </div>
-        <p className="data text-[10px] uppercase tracking-widest text-ink-muted mb-4">
+        <p className="data text-[10px] uppercase tracking-widest text-ink-muted mb-3">
           poslední sync: {lastSync}
         </p>
+
+        {/* Counts side-by-side — biggest signal that push would be lossy */}
+        <div className="hairline rounded-md p-3 mb-4 bg-surface flex items-center gap-4 flex-wrap data text-xs">
+          <div>
+            <span className="text-ink-muted">lokálně </span>
+            <span className="text-ink tabular-nums">
+              {localDeckCount}d / {localCardCount}c
+            </span>
+          </div>
+          <span className="text-ink-muted">↔</span>
+          <div>
+            <span className="text-ink-muted">cloud </span>
+            {cloudMeta === null ? (
+              <span className="text-ink-muted">…</span>
+            ) : (
+              <span
+                className={`tabular-nums ${
+                  cloudMeta.cardCount > localCardCount ? "text-accent" : "text-ink"
+                }`}
+              >
+                {cloudMeta.deckCount}d / {cloudMeta.cardCount}c
+              </span>
+            )}
+          </div>
+          {cloudMeta && cloudMeta.cardCount > localCardCount && (
+            <span className="text-accent">
+              ⚠ push by smazal {cloudMeta.cardCount - localCardCount} karet
+            </span>
+          )}
+        </div>
+
         <div className="flex items-center gap-2 flex-wrap">
           <Button
             onClick={handlePush}
             disabled={busy !== null}
-            variant="primary"
+            variant={
+              cloudMeta && cloudMeta.cardCount > localCardCount
+                ? "secondary"
+                : "primary"
+            }
             size="sm"
           >
             {busy === "push" ? "Nahrávám…" : "↑ Lokální → cloud"}

@@ -104,6 +104,72 @@ export async function pushToCloud(): Promise<SyncResult> {
   }
 }
 
+export interface CloudMeta {
+  exists: boolean;
+  cardCount: number;
+  deckCount: number;
+  updatedAt: number | null;
+  clientId: string | null;
+}
+
+/** Cheap counts-only fetch — used by CloudSync to show "lokálně X ·
+ *  cloud Y" before the user clicks a sync button. */
+export async function fetchCloudMeta(): Promise<CloudMeta | null> {
+  try {
+    const resp = await fetch("/api/sync/meta", { credentials: "include" });
+    if (!resp.ok) return null;
+    return (await resp.json()) as CloudMeta;
+  } catch {
+    return null;
+  }
+}
+
+export interface CloudHistoryEntry {
+  savedAt: number;
+  cardCount: number;
+  deckCount: number;
+  clientId: string | null;
+}
+
+export async function listHistory(): Promise<CloudHistoryEntry[] | null> {
+  try {
+    const resp = await fetch("/api/sync/history", { credentials: "include" });
+    if (!resp.ok) return null;
+    const body = (await resp.json()) as { snapshots: CloudHistoryEntry[] };
+    return body.snapshots;
+  } catch {
+    return null;
+  }
+}
+
+export async function restoreHistory(
+  savedAt: number,
+): Promise<SyncResult & { applied?: boolean }> {
+  try {
+    const resp = await fetch("/api/sync/history", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ savedAt }),
+    });
+    const body = await resp.json().catch(() => ({}) as Record<string, unknown>);
+    if (!resp.ok) {
+      return { ok: false, message: (body.message as string) ?? `Restore failed (${resp.status})` };
+    }
+    // Apply restored snapshot locally too (same shape as pull).
+    if (body.data && typeof body.data === "object") {
+      applySnapshot(body.data as Partial<Snapshot>);
+    }
+    const updatedAt = (body.restoredAt as number | undefined) ?? Date.now();
+    useCloudAuth.setState((s) =>
+      s.user ? { user: { ...s.user, lastSyncAt: updatedAt } } : s,
+    );
+    return { ok: true, updatedAt, applied: true };
+  } catch (e) {
+    return { ok: false, message: String(e) };
+  }
+}
+
 export async function pullFromCloud(): Promise<SyncResult> {
   try {
     const resp = await fetch("/api/sync/pull", { credentials: "include" });
