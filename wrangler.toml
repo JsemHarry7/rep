@@ -11,4 +11,4 @@ pages_build_output_dir = "dist"
 [[d1_databases]]
 binding = "DB"
 database_name = "rep"
-database_id = "REPLACE_WITH_REAL_DATABASE_ID"
+database_id = "eb540613-293e-498c-8386-5d290f911698"
