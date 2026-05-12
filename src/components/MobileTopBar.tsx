@@ -1,6 +1,7 @@
 import { useLocation } from "wouter";
 import { ThemeToggle } from "./ThemeToggle";
 import { SyncIndicator } from "./SyncIndicator";
+import { VersionStamp } from "./VersionStamp";
 
 export function MobileTopBar() {
   const [, navigate] = useLocation();
@@ -30,11 +31,9 @@ export function MobileTopBar() {
         <span className="data text-xs font-medium lowercase tracking-tight text-chrome-fg-dim leading-none">
           rep
         </span>
-        <span className="data text-[10px] uppercase tracking-widest text-chrome-fg-muted">
-          v0.0.1
-        </span>
       </button>
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
+        <VersionStamp tone="chrome" />
         <SyncIndicator />
         <ThemeToggle />
       </div>

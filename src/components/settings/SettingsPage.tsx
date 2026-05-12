@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { useAppStore, ymd } from "@/lib/store";
+import { CURRENT_VERSION } from "@/lib/changelog";
 import { downloadBackup, importBackup } from "@/lib/backup";
 import type { Deadline } from "@/types";
 import { Button } from "@/components/ui/Button";
@@ -291,7 +292,7 @@ export function SettingsPage() {
         >
           <div className="min-w-0">
             <h3 className="data text-sm font-semibold text-ink mb-1 group-hover:text-accent transition-colors">
-              rep · v0.0.1
+              rep · v{CURRENT_VERSION}
             </h3>
             <p className="prose text-sm text-ink-dim max-w-prose">
               Příběh projektu, tech stack, kontakt na cloud sync access.

@@ -1,5 +1,6 @@
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/Button";
+import { VersionStamp } from "@/components/VersionStamp";
 
 /* ---------- /about ----------
  *
@@ -177,8 +178,9 @@ export function AboutPage() {
             v rage a v <span className="data">Instrument Serif</span> ·
             maturita 2026
           </p>
-          <p className="data text-[10px] uppercase tracking-widest text-ink-muted">
-            v0.0.1 · local-first PWA
+          <p className="data text-[10px] uppercase tracking-widest text-ink-muted flex items-center gap-2">
+            <VersionStamp tone="surface" />
+            <span>· local-first PWA</span>
           </p>
         </section>
 

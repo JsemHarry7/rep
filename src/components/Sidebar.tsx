@@ -3,6 +3,7 @@ import type { Deck } from "@/types";
 import { pathToView } from "@/App";
 import { useCombinedContent } from "@/lib/data";
 import { ThemeToggle } from "./ThemeToggle";
+import { VersionStamp } from "./VersionStamp";
 
 export function Sidebar() {
   const [location, navigate] = useLocation();
@@ -22,10 +23,10 @@ export function Sidebar() {
         border-r border-chrome-line
       "
     >
-      <div className="px-5 pt-5 pb-4 border-b border-chrome-line">
+      <div className="px-5 pt-5 pb-4 border-b border-chrome-line flex items-baseline gap-3">
         <button
           onClick={() => navigate("/home")}
-          className="w-full flex items-baseline gap-3 group"
+          className="flex items-baseline gap-3 group"
           aria-label="rep — home"
         >
           <span className="data text-2xl font-semibold lowercase tracking-tight text-chrome-fg leading-none">
@@ -37,10 +38,10 @@ export function Sidebar() {
           <span className="data text-sm font-medium lowercase tracking-tight text-chrome-fg-dim leading-none">
             rep
           </span>
-          <span className="data text-[10px] uppercase tracking-widest text-chrome-fg-muted ml-auto">
-            v0.0.1
-          </span>
         </button>
+        <div className="ml-auto">
+          <VersionStamp tone="chrome" />
+        </div>
       </div>
 
       <nav className="flex-1 overflow-y-auto py-4">
@@ -116,9 +117,7 @@ export function Sidebar() {
       </nav>
 
       <div className="px-5 py-4 border-t border-chrome-line flex items-center justify-between">
-        <span className="data text-[10px] uppercase tracking-widest text-chrome-fg-muted">
-          v0.0.1
-        </span>
+        <VersionStamp tone="chrome" />
         <ThemeToggle />
       </div>
     </aside>

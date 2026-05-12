@@ -4,6 +4,7 @@ import { useTheme } from "@/lib/theme";
 import { useAppStore } from "@/lib/store";
 import { Button } from "@/components/ui/Button";
 import { OnboardingDialog } from "@/components/onboarding/OnboardingDialog";
+import { VersionStamp } from "@/components/VersionStamp";
 
 const features: { title: string; body: string }[] = [
   {
@@ -77,8 +78,9 @@ export function LandingPage() {
       <section className="border-b border-line">
         <div className="max-w-5xl mx-auto px-6 sm:px-10 lg:px-16 py-16 sm:py-24 grid lg:grid-cols-5 gap-10 lg:gap-16 items-center">
           <div className="lg:col-span-3">
-            <div className="data text-[10px] uppercase tracking-widest text-accent mb-6">
-              v0.0.1 · local-first PWA
+            <div className="data text-[10px] uppercase tracking-widest text-accent mb-6 flex items-center gap-2">
+              <VersionStamp tone="surface" />
+              <span>· local-first PWA</span>
             </div>
             <h1 className="display text-6xl sm:text-7xl lg:text-8xl text-ink mb-6 leading-[0.95]">
               Repetice.
