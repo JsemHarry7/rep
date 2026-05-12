@@ -10,6 +10,7 @@ import {
 } from "@/lib/collectionBundle";
 import { useAppStore } from "@/lib/store";
 import { Button } from "@/components/ui/Button";
+import { MarkdownInline } from "@/components/MarkdownInline";
 
 /* ---------- /share ----------
  *
@@ -328,7 +329,7 @@ function PreviewView({
                 {c.type}
               </span>
               <span className="prose text-sm text-ink truncate">
-                {previewLabel(c)}
+                <MarkdownInline>{previewLabel(c)}</MarkdownInline>
               </span>
             </li>
           ))}

@@ -1,4 +1,5 @@
 import type { ParsedCard } from "@/lib/parser";
+import { MarkdownInline } from "@/components/MarkdownInline";
 
 interface Props {
   cards: ParsedCard[];
@@ -32,7 +33,7 @@ export function CardPreview({ cards, skipped, onToggleSkip }: Props) {
             <span
               className={`prose text-sm flex-1 truncate ${isSkipped ? "line-through text-ink-muted" : "text-ink"}`}
             >
-              {preview(c)}
+              <MarkdownInline>{preview(c)}</MarkdownInline>
             </span>
             <button
               type="button"

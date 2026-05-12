@@ -3,6 +3,7 @@ import type { Card, Deck, Rating, ReviewMode } from "@/types";
 import { useAppStore } from "@/lib/store";
 import { deckMastery, selectDueCards } from "@/lib/srs";
 import { Button } from "@/components/ui/Button";
+import { MarkdownInline } from "@/components/MarkdownInline";
 import {
   EditCardDialog,
   DeleteCardDialog,
@@ -273,7 +274,7 @@ export function DeckDetail({
                   {c.type}
                 </span>
                 <span className="prose text-sm text-ink truncate flex-1">
-                  {cardPreview(c)}
+                  <MarkdownInline>{cardPreview(c)}</MarkdownInline>
                 </span>
                 {s && (
                   <span className="data text-[10px] uppercase tracking-widest text-ink-muted shrink-0 hidden sm:inline">
