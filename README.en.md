@@ -135,7 +135,38 @@ Active development during exam prep, with the oral exam on 2026-05-25.
 Version `0.0.1` means "works, used daily, but no stable API". The data
 format may still shift; back up via the JSON export in Settings.
 
+## Extending & open source
+
+This is primarily a personal maturita project, but the code is
+**open source under the [MIT license](./LICENSE)** — fork it, use it,
+modify it. No copyleft strings, just keep the copyright header.
+
+**If you want to build your own version** (for your school / exam /
+different subject), fork and go. No need to ask. A few pointers on
+where to start:
+
+| What you want to change | Where to look |
+|---|---|
+| Card / deck data model | `src/types.ts` |
+| Global state, persist key, migrations | `src/lib/store.ts` |
+| SRS scheduler (intervals, ease factor) | `src/lib/srs.ts` |
+| Add a new card type | `src/components/review/`, `src/components/add/` |
+| Change palette / fonts | `src/index.css` (`@theme` tokens) |
+| New review mode | `src/components/review/ReviewScreen.tsx` + `types.ts` `ReviewMode` |
+| Backend / cloud sync logic | `functions/api/`, `schema.sql` |
+
+**If you want to contribute back** (bugfix, new feature, translation
+improvement): open an issue or a PR at
+[github.com/JsemHarry7/rep](https://github.com/JsemHarry7/rep). For
+larger changes please file an issue first so you don't sink time into
+something that wouldn't be mergeable (e.g. anything that would break
+the author's active maturita workflow).
+
+For questions / ideas / cloud-sync access requests, email
+[kontakt@harrydeiml.ing](mailto:kontakt@harrydeiml.ing).
+
 ## Credits
 
 Crafted by [harry](https://harrydeiml.ing) ·
-[harry.deimling7@gmail.com](mailto:harry.deimling7@gmail.com)
+[kontakt@harrydeiml.ing](mailto:kontakt@harrydeiml.ing) ·
+licensed under [MIT](./LICENSE)

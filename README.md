@@ -128,7 +128,36 @@ Aktivně vyvíjeno během přípravy na maturitu, ústní zkouška 25.5.2026.
 Verze `0.0.1` znamená "funkční, používané denně, ale ne stabilní API".
 Datový formát se ještě může změnit; zálohuj přes export JSON v Settings.
 
+## Rozvíjení & open source
+
+Tohle je primárně osobní maturitní projekt, ale kód je **open source pod
+[MIT licencí](./LICENSE)** — forkni, používej, uprav. Žádné copyleft
+podmínky, jen zachovej copyright header.
+
+**Pokud chceš stavět vlastní verzi** (pro svoji školu / zkoušku / jiný
+předmět), fork a jeď. Není potřeba se ptát. Pár tipů kde začít:
+
+| Co chceš upravit | Kam se podívat |
+|---|---|
+| Datový model karet / decků | `src/types.ts` |
+| Globální state, persist klíč, migrace | `src/lib/store.ts` |
+| SRS scheduler (intervaly, ease factor) | `src/lib/srs.ts` |
+| Přidat nový typ karty | `src/components/review/`, `src/components/add/` |
+| Změnit paletu / fonty | `src/index.css` (`@theme` tokens) |
+| Nový review mode | `src/components/review/ReviewScreen.tsx` + `types.ts` `ReviewMode` |
+| Backend / cloud sync logika | `functions/api/`, `schema.sql` |
+
+**Pokud chceš přispět zpátky** (bugfix, nový feature, zlepšení překladu):
+otevři issue nebo rovnou PR na [github.com/JsemHarry7/rep](https://github.com/JsemHarry7/rep).
+Pro větší změny prosím issue nejdřív, ať se zbytečně nesnažíš o něco,
+co by nešlo zmergeovat (např. něco, co by rozbilo aktuální maturitní
+workflow autora).
+
+Pro otázky / nápady / žádost o přístup ke cloud syncu napiš na
+[kontakt@harrydeiml.ing](mailto:kontakt@harrydeiml.ing).
+
 ## Credits
 
 Crafted by [harry](https://harrydeiml.ing) ·
-[harry.deimling7@gmail.com](mailto:harry.deimling7@gmail.com)
+[kontakt@harrydeiml.ing](mailto:kontakt@harrydeiml.ing) ·
+licensováno pod [MIT](./LICENSE)
