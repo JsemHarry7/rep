@@ -28,7 +28,12 @@
 import { create } from "zustand";
 import { useAppStore } from "@/lib/store";
 import { useCloudAuth } from "@/lib/cloudAuth";
-import { isApplyingRemote, pullFromCloud, pushToCloud } from "@/lib/sync";
+import {
+  fetchCloudMeta,
+  isApplyingRemote,
+  pullFromCloud,
+  pushToCloud,
+} from "@/lib/sync";
 
 const DIRTY_KEY = "rep:sync:dirty";
 const DEBOUNCE_MS = 3000;
@@ -113,6 +118,28 @@ async function doPush(): Promise<void> {
   }
 
   pendingChange = false;
+
+  /* ----- Lossy-push guard (auto-push only) -----
+   * The manual push button shows an interactive confirm when cloud
+   * has more cards than local. Auto-sync can't ask the user — it's
+   * silent — but the catastrophic case (fresh device, local = 0, cloud
+   * = whole library) is unambiguous: never auto-push 0 cards over a
+   * populated cloud. Server-side history is still the ultimate
+   * safety net for the gray-zone cases (partial deletes, etc.). */
+  const localCards = useAppStore.getState().userCards.length;
+  if (localCards === 0) {
+    const cloudMeta = await fetchCloudMeta();
+    if (cloudMeta && cloudMeta.cardCount > 0) {
+      setPhase("error", {
+        lastError:
+          `Auto-sync zastaven: lokál 0 karet, cloud ${cloudMeta.cardCount}. ` +
+          "Stáhni cloud v Settings → ↓ Stáhnout, nebo obnov z Cloud záloh.",
+      });
+      // Leave dirty flag set — next legitimate change will retry.
+      return;
+    }
+  }
+
   setPhase("syncing");
   const promise = pushToCloud();
   inflightPush = promise;
