@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+# /share#... routes carry deck data in the URL hash — fragments aren't
+# sent to crawlers anyway. Nothing sensitive on the site otherwise.
