@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { PWAInstall } from "@/components/PWAInstall";
 import { CloudSync } from "@/components/settings/CloudSync";
 import { AllowlistManager } from "@/components/settings/AllowlistManager";
+import { SharedDecksList } from "@/components/settings/SharedDecksList";
 
 export function SettingsPage() {
   const [, navigate] = useLocation();
@@ -158,6 +159,11 @@ export function SettingsPage() {
           cloud sync
         </h2>
         <CloudSync />
+      </section>
+
+      {/* Cloud user — SharedDecksList auto-hides if not signed in. */}
+      <section className="mb-12">
+        <SharedDecksList />
       </section>
 
       {/* Owner-only — AllowlistManager auto-hides if !isOwner. */}

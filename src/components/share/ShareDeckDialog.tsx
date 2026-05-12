@@ -1,10 +1,12 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   buildShareUrl,
   downloadDeckMd,
   serializeDeck,
   SHARE_URL_SOFT_LIMIT,
 } from "@/lib/deckExport";
+import { createShare } from "@/lib/shareApi";
+import { useCloudAuth } from "@/lib/cloudAuth";
 import type { Card, Deck } from "@/types";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
@@ -43,7 +45,7 @@ export function ShareDeckDialog({ deck, cards, open, onClose }: Props) {
   );
 }
 
-type Tab = "link" | "file" | "text";
+type Tab = "short" | "link" | "file" | "text";
 
 function ShareContent({
   deck,
@@ -54,12 +56,37 @@ function ShareContent({
   cards: Card[];
   onClose: () => void;
 }) {
-  const [tab, setTab] = useState<Tab>("link");
+  const isCloudUser = useCloudAuth((s) => s.status === "signed-in");
+  // Cloud users see the "Krátký link" tab as the default — it produces
+  // a short /s/abc12345 URL backed by D1. Non-cloud users only see the
+  // existing client-only options.
+  const [tab, setTab] = useState<Tab>(isCloudUser ? "short" : "link");
   const [copied, setCopied] = useState<string | null>(null);
 
   const md = useMemo(() => serializeDeck(deck, cards), [deck, cards]);
   const link = useMemo(() => buildShareUrl(deck, cards), [deck, cards]);
   const linkOk = link.length <= SHARE_URL_SOFT_LIMIT;
+
+  /* ---- Short-link (cloud) state ---- */
+  const [shortLink, setShortLink] = useState<string | null>(null);
+  const [shortBusy, setShortBusy] = useState(false);
+  const [shortError, setShortError] = useState<string | null>(null);
+
+  // Reset short-link state whenever the deck/cards change — stale ID
+  // would point at the previous snapshot.
+  useEffect(() => {
+    setShortLink(null);
+    setShortError(null);
+  }, [md]);
+
+  const handleCreateShort = async () => {
+    setShortBusy(true);
+    setShortError(null);
+    const r = await createShare(deck, cards);
+    setShortBusy(false);
+    if (r.ok) setShortLink(r.data.url);
+    else setShortError(r.message);
+  };
 
   const copy = async (text: string, label: string) => {
     try {
@@ -71,27 +98,29 @@ function ShareContent({
     }
   };
 
+  const tabs = [
+    ...(isCloudUser ? [{ id: "short" as Tab, label: "Krátký link" }] : []),
+    { id: "link" as Tab, label: isCloudUser ? "Dlouhý link" : "Linkem" },
+    { id: "file" as Tab, label: ".md soubor" },
+    { id: "text" as Tab, label: "Markdown text" },
+  ];
+
   return (
     <div>
       <p className="prose text-sm text-ink-dim mb-5 max-w-prose">
-        Tři způsoby. Žádné AI, žádný server, žádná telemetrie — všechno se
-        děje v prohlížeči.
+        {isCloudUser
+          ? "Krátký link je hostovaný u nás v D1 (proto je krátký). Ostatní možnosti běží jen v prohlížeči — bez serveru."
+          : "Tři způsoby. Žádné AI, žádný server, žádná telemetrie — všechno se děje v prohlížeči."}
       </p>
 
-      <nav className="flex border-b border-line mb-5">
-        {(
-          [
-            { id: "link", label: "Linkem" },
-            { id: "file", label: ".md soubor" },
-            { id: "text", label: "Markdown text" },
-          ] as { id: Tab; label: string }[]
-        ).map((t) => (
+      <nav className="flex border-b border-line mb-5 overflow-x-auto">
+        {tabs.map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
             className={`
               data text-xs uppercase tracking-widest
-              px-4 py-2 -mb-px border-b-2
+              px-4 py-2 -mb-px border-b-2 whitespace-nowrap
               transition-colors
               ${
                 tab === t.id
@@ -104,6 +133,51 @@ function ShareContent({
           </button>
         ))}
       </nav>
+
+      {tab === "short" && (
+        <div>
+          <p className="prose text-sm text-ink-dim mb-3 max-w-prose">
+            Krátký <span className="data">/s/abc12345</span> link. Otevře
+            ho kdokoliv (i bez účtu), data si přitáhne ze serveru. Můžeš
+            ho kdykoliv odebrat v Settings → Sdílené decky.
+          </p>
+          {shortLink ? (
+            <>
+              <input
+                type="text"
+                value={shortLink}
+                readOnly
+                onFocus={(e) => e.currentTarget.select()}
+                className="form-input data text-sm mb-3"
+              />
+              <div className="flex items-center gap-3 flex-wrap">
+                <Button
+                  onClick={() => copy(shortLink, "short")}
+                  variant="primary"
+                  size="sm"
+                >
+                  {copied === "short" ? "Zkopírováno ✓" : "Kopírovat link"}
+                </Button>
+                <span className="data text-[10px] uppercase tracking-widest text-ink-muted">
+                  {shortLink.length} znaků
+                </span>
+              </div>
+            </>
+          ) : (
+            <Button
+              onClick={handleCreateShort}
+              variant="primary"
+              size="md"
+              disabled={shortBusy}
+            >
+              {shortBusy ? "Vytvářím…" : "Vytvořit krátký link"}
+            </Button>
+          )}
+          {shortError && (
+            <p className="data text-xs text-bad mt-3 break-all">{shortError}</p>
+          )}
+        </div>
+      )}
 
       {tab === "link" && (
         <div>

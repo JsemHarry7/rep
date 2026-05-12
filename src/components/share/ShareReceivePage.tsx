@@ -1,38 +1,101 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { parseShareHash } from "@/lib/deckExport";
+import { parseDeckMarkdown, type ParsedDeck } from "@/lib/parser";
+import { fetchShare } from "@/lib/shareApi";
 import { useAppStore } from "@/lib/store";
 import { Button } from "@/components/ui/Button";
-import type { ParsedDeck } from "@/lib/parser";
 
 /* ---------- /share ----------
  *
- * Reads the URL hash (e.g. /share#eyJ...), decodes it back to markdown,
- * parses it, shows a preview, and lets the user import the deck into
- * their local store. Reading from hash means the data never appears in
- * server access logs.
+ * Two flavors:
+ *   /share#<base64>   client-only — decode hash to markdown, no server
+ *   /s/:id            server-stored — fetch from /api/share/:id
+ *
+ * Both end up in the same preview → import flow. The hash flavor is
+ * what non-cloud users see; the short /s/ flavor is the optional
+ * upgrade cloud users get via Settings (or Sdílet → Krátký link).
  */
-export function ShareReceivePage() {
+interface Props {
+  /** Set when reached via /s/:id route. Triggers server fetch. */
+  shortId?: string;
+}
+
+export function ShareReceivePage({ shortId }: Props = {}) {
   const [, navigate] = useLocation();
   const createDeck = useAppStore((s) => s.createDeck);
   const addCards = useAppStore((s) => s.addCards);
 
+  const [imported, setImported] = useState<{
+    deckId: string;
+    title: string;
+  } | null>(null);
+
+  // Hash mode state — only used when no shortId.
   const [hash, setHash] = useState(() =>
     typeof window !== "undefined" ? window.location.hash : "",
   );
-  const [imported, setImported] = useState<{ deckId: string; title: string } | null>(
-    null,
-  );
-
   useEffect(() => {
+    if (shortId) return;
     const handler = () => setHash(window.location.hash);
     window.addEventListener("hashchange", handler);
     return () => window.removeEventListener("hashchange", handler);
-  }, []);
+  }, [shortId]);
 
-  const result = useMemo(() => parseShareHash(hash), [hash]);
-  const error = "error" in result ? result.error : null;
-  const parsed: ParsedDeck | null = "error" in result ? null : result;
+  // Short-id mode state — fetched on mount.
+  const [serverShare, setServerShare] = useState<{
+    parsed: ParsedDeck;
+    title: string;
+    views: number;
+  } | null>(null);
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [serverLoading, setServerLoading] = useState(!!shortId);
+
+  useEffect(() => {
+    if (!shortId) return;
+    let cancelled = false;
+    (async () => {
+      setServerLoading(true);
+      const r = await fetchShare(shortId);
+      if (cancelled) return;
+      setServerLoading(false);
+      if (!r.ok) {
+        setServerError(r.message);
+        return;
+      }
+      const parsedDeck = parseDeckMarkdown(r.data.deckMd);
+      setServerShare({
+        parsed: parsedDeck,
+        title: r.data.title,
+        views: r.data.views,
+      });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [shortId]);
+
+  const hashResult = useMemo(
+    () => (shortId ? null : parseShareHash(hash)),
+    [hash, shortId],
+  );
+
+  // Unified view model
+  const error: string | null = shortId
+    ? serverError
+    : hashResult && "error" in hashResult
+      ? hashResult.error
+      : null;
+  const parsed: ParsedDeck | null = shortId
+    ? serverShare?.parsed ?? null
+    : hashResult && !("error" in hashResult)
+      ? hashResult
+      : null;
+  const sourceLabel = shortId
+    ? `sdíleno přes krátký link · /s/${shortId}`
+    : "sdíleno přes link";
+  const viewsLabel = shortId && serverShare ? serverShare.views : null;
+  const loading = shortId && serverLoading;
 
   const cardCounts = useMemo(() => {
     if (!parsed) return null;
@@ -94,12 +157,16 @@ export function ShareReceivePage() {
             deckId={imported.deckId}
             onClose={() => navigate("/home")}
           />
+        ) : loading ? (
+          <LoadingView />
         ) : error ? (
           <ErrorView message={error} onClose={() => navigate("/home")} />
         ) : parsed ? (
           <PreviewView
             parsed={parsed}
             cardCounts={cardCounts ?? {}}
+            sourceLabel={sourceLabel}
+            viewsLabel={viewsLabel}
             onImport={handleImport}
             onCancel={() => navigate("/home")}
           />
@@ -109,14 +176,32 @@ export function ShareReceivePage() {
   );
 }
 
+function LoadingView() {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="min-h-[40vh] flex items-center justify-center"
+    >
+      <span className="data text-[10px] uppercase tracking-widest text-ink-muted animate-pulse">
+        načítám sdílený deck…
+      </span>
+    </div>
+  );
+}
+
 function PreviewView({
   parsed,
   cardCounts,
+  sourceLabel,
+  viewsLabel,
   onImport,
   onCancel,
 }: {
   parsed: ParsedDeck;
   cardCounts: Record<string, number>;
+  sourceLabel: string;
+  viewsLabel: number | null;
   onImport: () => void;
   onCancel: () => void;
 }) {
@@ -126,8 +211,13 @@ function PreviewView({
 
   return (
     <>
-      <div className="data text-[10px] uppercase tracking-widest text-accent mb-4">
-        sdíleno přes link
+      <div className="data text-[10px] uppercase tracking-widest text-accent mb-4 flex items-center gap-3 flex-wrap">
+        <span>{sourceLabel}</span>
+        {viewsLabel !== null && (
+          <span className="text-ink-muted">
+            · {viewsLabel}× otevřeno
+          </span>
+        )}
       </div>
       <h1 className="display text-5xl sm:text-6xl mb-3 leading-tight">
         {parsed.meta.title ?? "Beze jména"}

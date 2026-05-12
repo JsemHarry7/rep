@@ -97,6 +97,9 @@ export function App() {
         <Route path="/share">
           <ShareReceivePage />
         </Route>
+        <Route path="/s/:id">
+          {(params) => <ShareReceivePage shortId={params.id!} />}
+        </Route>
         <Route>
           <AppShell />
         </Route>

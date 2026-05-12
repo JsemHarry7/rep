@@ -34,3 +34,26 @@ CREATE TABLE IF NOT EXISTS allowed_emails (
   note TEXT,                      -- free-form: "kamarad ze tridy", "test"
   added_at INTEGER NOT NULL
 );
+
+-- Server-stored deck shares. Only cloud users (allowlisted, signed in)
+-- can create one — the short /s/:id URL then opens for anyone, no
+-- account needed. The full deck content lives here as serialized
+-- markdown so the receive flow is one round-trip from the recipient's
+-- browser. Owner can revoke from Settings.
+--
+-- Compare with the original /share#<base64> flow which never touches
+-- the server but produces 1-4 KB URLs — that one still works for
+-- non-cloud users; this table is the optional short-URL upgrade.
+CREATE TABLE IF NOT EXISTS shared_decks (
+  id TEXT PRIMARY KEY,            -- 8-char base36 random id (~48 bits)
+  owner_id TEXT NOT NULL,         -- creator's user.id (Google sub)
+  title TEXT NOT NULL,            -- denormalized for owner's listing
+  card_count INTEGER NOT NULL,    -- denormalized stats
+  deck_md TEXT NOT NULL,          -- serialized markdown (same as /share#)
+  created_at INTEGER NOT NULL,
+  views INTEGER NOT NULL DEFAULT 0,
+  FOREIGN KEY (owner_id) REFERENCES users(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_shared_decks_owner
+  ON shared_decks(owner_id, created_at DESC);

@@ -137,6 +137,21 @@ the env vars are set.
 
 ---
 
+## Schema migrations
+
+The `schema.sql` file uses `CREATE TABLE IF NOT EXISTS` everywhere, so
+re-applying after a schema change is safe and idempotent. New tables
+introduced since first deploy:
+
+  • `allowed_emails` — runtime allowlist (Settings UI)
+  • `shared_decks` — server-stored deck shares (`/s/:id` short URLs)
+
+If you originally deployed before these existed, re-run:
+
+```sh
+wrangler d1 execute rep --file=./schema.sql --remote
+```
+
 ## Adding a new authorized user
 
 Sign in as the `OWNER_EMAIL` and go to **Settings → Cloud access ·
