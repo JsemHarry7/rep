@@ -257,5 +257,6 @@ function takeSnapshotForBeacon() {
     srsState: s.srsState,
     user: s.user,
     deadlines: s.deadlines,
+    collections: s.collections,
   };
 }

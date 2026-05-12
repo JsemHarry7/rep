@@ -1,19 +1,47 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { useAppStore, ymd } from "@/lib/store";
 import { calibrationFromReviews, deckMastery } from "@/lib/srs";
 import { useCombinedContent } from "@/lib/data";
+import { collectionSize, resolveCollection } from "@/lib/collections";
 import { Heatmap } from "./Heatmap";
 import { StatGrid } from "@/components/StatGrid";
 import type { Deadline, Rating } from "@/types";
 
 export function StatsPage() {
   const [, navigate] = useLocation();
-  const reviews = useAppStore((s) => s.reviews);
+  const allReviews = useAppStore((s) => s.reviews);
   const user = useAppStore((s) => s.user);
   const srsState = useAppStore((s) => s.srsState);
   const deadlines = useAppStore((s) => s.deadlines);
-  const { decks: allDecks, cards: allCards } = useCombinedContent();
+  const collections = useAppStore((s) => s.collections);
+  const { decks: universeDecks, cards: universeCards } = useCombinedContent();
+
+  // Collection filter — null = "Všechny", otherwise scope every metric
+  // on this page to the decks/cards/reviews belonging to that collection.
+  const [activeCollectionId, setActiveCollectionId] = useState<string | null>(
+    null,
+  );
+  const activeCollection = activeCollectionId
+    ? collections.find((c) => c.id === activeCollectionId) ?? null
+    : null;
+
+  const allDecks = useMemo(() => {
+    if (!activeCollection) return universeDecks;
+    return resolveCollection(activeCollection, universeDecks);
+  }, [universeDecks, activeCollection]);
+
+  const allCards = useMemo(() => {
+    if (!activeCollection) return universeCards;
+    const deckIds = new Set(allDecks.map((d) => d.id));
+    return universeCards.filter((c) => deckIds.has(c.deckId));
+  }, [universeCards, allDecks, activeCollection]);
+
+  const reviews = useMemo(() => {
+    if (!activeCollection) return allReviews;
+    const cardIds = new Set(allCards.map((c) => c.id));
+    return allReviews.filter((r) => cardIds.has(r.cardId));
+  }, [allReviews, allCards, activeCollection]);
 
   const activityByDay = useMemo(() => {
     const map = new Map<string, number>();
@@ -72,12 +100,46 @@ export function StatsPage() {
 
   return (
     <div className="px-6 sm:px-10 lg:px-16 py-10 sm:py-14 max-w-5xl mx-auto">
-      <header className="mb-10">
+      <header className="mb-6">
         <h1 className="display text-5xl sm:text-6xl mb-3">Stats.</h1>
         <p className="prose text-base text-ink-dim max-w-prose">
           Tvoje učení v číslech. Aktualizuje se po každém review.
+          {activeCollection && (
+            <>
+              {" "}Filtrováno na kolekci{" "}
+              <span className="text-accent">{activeCollection.title}</span>.
+            </>
+          )}
         </p>
       </header>
+
+      {collections.length > 0 && (
+        <div className="mb-8 -mx-2 px-2 overflow-x-auto">
+          <div className="flex items-center gap-1.5 min-w-max">
+            <StatsChip
+              active={activeCollectionId === null}
+              onClick={() => setActiveCollectionId(null)}
+            >
+              Všechny
+            </StatsChip>
+            {collections.map((c) => {
+              const size = collectionSize(c, universeDecks);
+              return (
+                <StatsChip
+                  key={c.id}
+                  active={activeCollectionId === c.id}
+                  onClick={() => setActiveCollectionId(c.id)}
+                >
+                  {c.title}
+                  <span className="text-ink-muted ml-1.5 tabular-nums">
+                    {size}
+                  </span>
+                </StatsChip>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Streak callout — single full-width hero, no asymmetry */}
       <section className="mb-3">
@@ -420,4 +482,33 @@ function daysBetween(fromYmd: string, toYmd: string): number {
   const a = new Date(fromYmd + "T00:00:00");
   const b = new Date(toYmd + "T00:00:00");
   return Math.round((b.getTime() - a.getTime()) / (24 * 60 * 60 * 1000));
+}
+
+function StatsChip({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`
+        data text-[11px] uppercase tracking-widest
+        px-3 py-1.5 min-h-[36px]
+        hairline rounded-sm whitespace-nowrap
+        transition-colors
+        ${
+          active
+            ? "border-navy bg-navy text-navy-fg"
+            : "text-ink-dim hover:border-line-strong hover:text-ink"
+        }
+      `}
+    >
+      {children}
+    </button>
+  );
 }

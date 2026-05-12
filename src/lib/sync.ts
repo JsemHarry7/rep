@@ -16,6 +16,7 @@ import { useAppStore } from "@/lib/store";
 import { useCloudAuth } from "@/lib/cloudAuth";
 import type {
   Card,
+  Collection,
   Deadline,
   Deck,
   Review,
@@ -30,6 +31,7 @@ interface Snapshot {
   srsState: Record<string, SrsState>;
   user: UserState;
   deadlines: Deadline[];
+  collections: Collection[];
 }
 
 export interface SyncResult {
@@ -56,6 +58,7 @@ function takeSnapshot(): Snapshot {
     srsState: s.srsState,
     user: s.user,
     deadlines: s.deadlines,
+    collections: s.collections,
   };
 }
 
@@ -70,6 +73,7 @@ function applySnapshot(snap: Partial<Snapshot>) {
       srsState: snap.srsState ?? {},
       user: { ...cur.user, ...(snap.user ?? {}) },
       deadlines: snap.deadlines ?? [],
+      collections: snap.collections ?? [],
     });
   } finally {
     applyingRemote = false;

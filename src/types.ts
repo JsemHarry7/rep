@@ -136,6 +136,47 @@ export interface Deadline {
   targetMastery?: number;
 }
 
+/* ---------- Collections ----------
+ *
+ * User-defined grouping over decks. Two flavors:
+ *
+ *   manual  Explicit list of deck IDs. Stable. If the user deletes a
+ *           deck, its id naturally drops out of the resolved member
+ *           list (we filter at read time, no FK cascade needed).
+ *
+ *   tag     Dynamic — membership is "all decks whose tags include
+ *           this tag". Resolves at read time, so adding a tag to a
+ *           new deck auto-pulls it into the collection.
+ *
+ * Discriminated union on `kind`. Sharing is intentionally out of
+ * scope for v1 of this feature — the model leaves room for it (id
+ * is stable, no foreign references), so a later "bundle decks +
+ * collection metadata" share endpoint can layer on without
+ * migrations.
+ */
+export type CollectionId = string;
+
+interface BaseCollection {
+  id: CollectionId;
+  title: string;
+  description?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface ManualCollection extends BaseCollection {
+  kind: "manual";
+  deckIds: DeckId[];
+}
+
+export interface TagCollection extends BaseCollection {
+  kind: "tag";
+  /** Single tag string. Matches `deck.tags.includes(tag)` case-sensitively. */
+  tag: string;
+}
+
+export type Collection = ManualCollection | TagCollection;
+
 /* ---------- Aggregates / derived ---------- */
 export interface DeckStats {
   deckId: DeckId;

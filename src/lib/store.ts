@@ -19,6 +19,8 @@ import { persist } from "zustand/middleware";
 import type {
   Card,
   CardId,
+  Collection,
+  CollectionId,
   Deadline,
   Deck,
   DeckId,
@@ -38,6 +40,7 @@ interface AppState {
   srsState: Record<CardId, SrsState>;
   user: UserState;
   deadlines: Deadline[];
+  collections: Collection[];
 
   /** Transient: whether the walkthrough is open right now. Not persisted —
    *  the user shouldn't be re-greeted by the tour on every reload. */
@@ -74,6 +77,18 @@ interface AppState {
   updateDeadline: (id: string, patch: Partial<Omit<Deadline, "id">>) => void;
   removeDeadline: (id: string) => void;
 
+  /* collections — user-defined groupings of decks (manual or by-tag) */
+  createCollection: (
+    input:
+      | { kind: "manual"; title: string; description?: string; deckIds: DeckId[] }
+      | { kind: "tag"; title: string; description?: string; tag: string },
+  ) => Collection;
+  updateCollection: (
+    id: CollectionId,
+    patch: Partial<Omit<Collection, "id" | "kind" | "createdAt">>,
+  ) => void;
+  deleteCollection: (id: CollectionId) => void;
+
   /* user prefs */
   updateUser: (patch: Partial<UserState>) => void;
 
@@ -106,6 +121,7 @@ export const useAppStore = create<AppState>()(
       srsState: {},
       user: emptyUser,
       deadlines: defaultDeadlines,
+      collections: [],
       tourOpen: false,
       openTour: () => set({ tourOpen: true }),
       closeTour: () => set({ tourOpen: false }),
@@ -221,6 +237,36 @@ export const useAppStore = create<AppState>()(
         set((s) => ({ deadlines: s.deadlines.filter((d) => d.id !== id) }));
       },
 
+      createCollection: (input) => {
+        const now = Date.now();
+        const id = `col-${makeId()}`;
+        const base = {
+          id,
+          title: input.title.trim() || "Nová kolekce",
+          description: input.description?.trim() || undefined,
+          createdAt: now,
+          updatedAt: now,
+        };
+        const collection: Collection =
+          input.kind === "manual"
+            ? { ...base, kind: "manual", deckIds: [...input.deckIds] }
+            : { ...base, kind: "tag", tag: input.tag.trim() };
+        set((s) => ({ collections: [...s.collections, collection] }));
+        return collection;
+      },
+
+      updateCollection: (id, patch) => {
+        set((s) => ({
+          collections: s.collections.map((c) =>
+            c.id === id ? ({ ...c, ...patch, updatedAt: Date.now() } as Collection) : c,
+          ),
+        }));
+      },
+
+      deleteCollection: (id) => {
+        set((s) => ({ collections: s.collections.filter((c) => c.id !== id) }));
+      },
+
       updateUser: (patch) => {
         set((s) => ({ user: { ...s.user, ...patch } }));
       },
@@ -233,6 +279,7 @@ export const useAppStore = create<AppState>()(
           srsState: {},
           user: emptyUser,
           deadlines: defaultDeadlines,
+          collections: [],
         }),
     }),
     {
