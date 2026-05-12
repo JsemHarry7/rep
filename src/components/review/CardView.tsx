@@ -7,6 +7,7 @@ import type {
   MCQCard,
   QACard,
 } from "@/types";
+import { MarkdownInline } from "@/components/MarkdownInline";
 
 interface CardViewProps {
   card: Card;
@@ -49,13 +50,13 @@ function QAView({ card, revealed }: { card: QACard; revealed: boolean }) {
   return (
     <>
       <h1 className="display text-3xl sm:text-5xl text-ink mb-10">
-        {card.question}
+        <MarkdownInline>{card.question}</MarkdownInline>
       </h1>
       {revealed && (
         <>
           <hr className="border-line mb-6" />
           <p className="prose text-lg text-ink-dim whitespace-pre-wrap">
-            {card.answer}
+            <MarkdownInline>{card.answer}</MarkdownInline>
           </p>
         </>
       )}
@@ -71,7 +72,9 @@ function ClozeView({ card, revealed }: { card: ClozeCard; revealed: boolean }) {
     <p className="prose text-xl sm:text-2xl text-ink leading-relaxed">
       {parts.map((p, i) =>
         p.type === "text" ? (
-          <span key={i}>{p.value}</span>
+          <span key={i}>
+            <MarkdownInline>{p.value}</MarkdownInline>
+          </span>
         ) : revealed ? (
           <span
             key={i}
@@ -137,7 +140,7 @@ function MCQView({
   return (
     <>
       <h1 className="display text-3xl sm:text-4xl text-ink mb-2">
-        {card.question}
+        <MarkdownInline>{card.question}</MarkdownInline>
       </h1>
       {multiCorrect && !revealed && (
         <p className="data text-[10px] uppercase tracking-widest text-ink-muted mb-6">
@@ -187,7 +190,7 @@ function MCQView({
                     ${!revealed ? "text-ink" : ""}
                   `}
                 >
-                  {opt.text}
+                  <MarkdownInline>{opt.text}</MarkdownInline>
                 </span>
                 {showCorrect && (
                   <span className="data text-[10px] uppercase tracking-widest text-ok">
@@ -209,7 +212,9 @@ function MCQView({
           <div className="data text-[10px] uppercase tracking-widest text-ink-muted mb-1">
             explanation
           </div>
-          <p className="prose text-sm text-ink-dim">{card.explanation}</p>
+          <p className="prose text-sm text-ink-dim">
+            <MarkdownInline>{card.explanation}</MarkdownInline>
+          </p>
         </div>
       )}
       {multiCorrect && !revealed && (
@@ -231,7 +236,7 @@ function FreeView({ card, revealed }: { card: FreeCard; revealed: boolean }) {
   return (
     <>
       <h1 className="display text-3xl sm:text-4xl text-ink mb-8">
-        {card.prompt}
+        <MarkdownInline>{card.prompt}</MarkdownInline>
       </h1>
       <label className="block">
         <div className="data text-[10px] uppercase tracking-widest text-ink-muted mb-2">
@@ -258,7 +263,7 @@ function FreeView({ card, revealed }: { card: FreeCard; revealed: boolean }) {
             expected
           </div>
           <p className="prose text-base text-ink whitespace-pre-wrap border-l-2 border-navy pl-4">
-            {card.expected}
+            <MarkdownInline>{card.expected}</MarkdownInline>
           </p>
         </div>
       )}
@@ -273,7 +278,7 @@ function CodeView({ card, revealed }: { card: CodeCard; revealed: boolean }) {
   return (
     <>
       <h1 className="display text-3xl sm:text-4xl text-ink mb-8">
-        {card.prompt}
+        <MarkdownInline>{card.prompt}</MarkdownInline>
       </h1>
       <label className="block">
         <div className="data text-[10px] uppercase tracking-widest text-ink-muted mb-2">
