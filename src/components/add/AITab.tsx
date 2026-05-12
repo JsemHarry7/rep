@@ -29,11 +29,26 @@ export function AITab() {
     [source, preset],
   );
 
-  const responseClean = useMemo(() => stripFences(response), [response]);
+  // parseDeckMarkdown does its own input normalization (strips outer
+  // fences, repairs render-stripped headers / bullets). Just hand the
+  // raw textarea contents straight in.
   const parsed = useMemo(
-    () => (responseClean.trim() ? parseDeckMarkdown(responseClean) : null),
-    [responseClean],
+    () => (response.trim() ? parseDeckMarkdown(response) : null),
+    [response],
   );
+
+  // Heuristic: if the response has zero `#` headers but does have
+  // `Q:` / `MCQ:` / `CLOZE:` / `FREE:` / `CODE:` patterns on their own
+  // line, the user almost certainly copied rendered output (text
+  // selection in the chat UI) rather than using the Copy button. The
+  // parser will still cope, but we surface a one-line hint pointing
+  // them at the better workflow next time.
+  const looksRenderStripped = useMemo(() => {
+    const txt = response.trim();
+    if (!txt) return false;
+    if (/^#\s+(Q|CLOZE|MCQ|FREE|CODE)\s*:/im.test(txt)) return false;
+    return /^\s*(Q|CLOZE|MCQ|FREE|CODE)\s*:\s*\S/im.test(txt);
+  }, [response]);
 
   const handleCopy = async () => {
     try {
@@ -191,8 +206,18 @@ export function AITab() {
               Otevři <span className="data">chatgpt.com</span>,{" "}
               <span className="data">claude.ai</span> nebo{" "}
               <span className="data">gemini.google.com</span>, vlož prompt,
-              odpověď zkopíruj a vlož v dalším kroku. Pomocník nic neposílá
-              sám — celý flow je tvůj.
+              odpověď zkopíruj a vlož v dalším kroku. Pomocník nic
+              neposílá sám — celý flow je tvůj.
+            </p>
+            <p className="prose text-xs text-ink-dim mt-2 max-w-prose">
+              <span className="data text-[10px] uppercase tracking-widest text-accent mr-1.5">
+                tip
+              </span>
+              LLM vrátí odpověď zabalenou v <span className="data">```` markdown</span>{" "}
+              code blocku — klikni na <span className="data">Copy</span>{" "}
+              tlačítko, co se nad ním objeví. Ručním selectem +
+              Ctrl/Cmd+C z chatu se ztratí formátování a parser pak
+              musí hádat.
             </p>
           </section>
         </>
@@ -203,7 +228,7 @@ export function AITab() {
           <section>
             <Field
               label="odpověď z AI"
-              hint="vlož odpověď z ChatGPT / Claude / Gemini — parser ji rozseká na karty"
+              hint="vlož odpověď z ChatGPT / Claude / Gemini — ideálně přes Copy button na code blocku"
             >
               <textarea
                 value={response}
@@ -211,12 +236,39 @@ export function AITab() {
                   setResponse(e.target.value);
                   setSkipped(new Set());
                 }}
-                placeholder={"# Q: …\nA: …\n\n# CLOZE: …"}
+                placeholder={
+                  "```` markdown\n# Q: …\nA: …\n\n# CLOZE: …\n````\n\nnebo bez ohraničení, parser se s tím porve"
+                }
                 rows={10}
                 className="form-textarea data text-xs"
                 spellCheck={false}
               />
             </Field>
+            {looksRenderStripped && (
+              <div
+                role="status"
+                className="
+                  mt-3 hairline rounded-md
+                  border-accent/40 bg-accent/5
+                  px-4 py-3
+                  prose text-xs text-ink-dim
+                  max-w-prose
+                "
+              >
+                <span className="data text-[10px] uppercase tracking-widest text-accent mr-2">
+                  pozor
+                </span>
+                Tohle vypadá jako zkopírovaný <em>render</em> z chatu —
+                chybí <span className="data">#</span> u headerů. Parser
+                to vesměs zvládne, ale pro spolehlivost příště použij{" "}
+                <span className="data">Copy</span> tlačítko na code
+                blocku (LLM ti odpověď zabalil do{" "}
+                <span className="data">```` markdown</span> fence kvůli
+                tomu). Selection + Ctrl/Cmd+C v ChatGPT vyhazuje{" "}
+                <span className="data">#</span>, <span className="data">-</span>,{" "}
+                <span className="data">{">"}</span> a&nbsp;<span className="data">```</span>.
+              </div>
+            )}
           </section>
 
           {parsed && (
@@ -364,13 +416,6 @@ function Field({
       {children}
     </label>
   );
-}
-
-function stripFences(s: string): string {
-  return s
-    .replace(/^\s*```(?:markdown|md)?\s*\n/, "")
-    .replace(/\n```\s*$/, "")
-    .trim();
 }
 
 function plural(n: number, one: string, few: string, many: string): string {

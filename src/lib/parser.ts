@@ -87,9 +87,63 @@ const HEADER_TYPES: Record<string, CardType> = {
   CODE: "code",
 };
 
+/* ---------- Input normalization ----------
+ *
+ * LLM chat UIs (ChatGPT, Claude, Gemini) render markdown to HTML. When
+ * a user copies the rendered output via text selection (instead of the
+ * "Copy" button on the message / code block), the formatting markers
+ * `#`, `*`, `-`, `>`, ` ``` ` get stripped — only the visible text
+ * survives. That broke our parser badly. This pre-pass repairs the
+ * common damage:
+ *
+ *   1. Strip outer code fences (3-tick or 4-tick wrappers we now ask
+ *      the model for in the prompt)
+ *   2. Restore `# ` in front of `Q:` / `CLOZE:` / `MCQ:` / `FREE:` /
+ *      `CODE:` lines that lost it during render → copy
+ *   3. Normalize bullet glyphs (`•`, `·`, `*`) back to `-` so MCQ
+ *      option parsing still works
+ *
+ * The repair is conservative — we only promote a `Q:`-style line to a
+ * header if it's at the very start OR preceded by a blank line.
+ * Otherwise something like `A: viz Q: jinde` in an answer body would
+ * be misread as a new card.
+ */
+export function normalizeLLMResponse(src: string): string {
+  // 1. Strip outer code fences (handles 3, 4, 5 backticks; with or
+  //    without language tag; with or without trailing newline).
+  src = src.replace(/^\s*`{3,5}(?:markdown|md)?\s*\n/, "");
+  src = src.replace(/\n`{3,5}\s*$/, "");
+  src = src.trim();
+
+  const lines = src.split(/\r?\n/);
+
+  // 2. Restore lost `# ` on type headers.
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i];
+    if (l.startsWith("#")) continue;
+    // Allow optional surrounding `**` (bold markers that sometimes survive).
+    const m = l.match(/^\s*\*{0,2}(Q|CLOZE|MCQ|FREE|CODE)\*{0,2}\s*:\s*(.*)$/i);
+    if (!m) continue;
+    const prev = i > 0 ? lines[i - 1] : "";
+    const atBoundary = i === 0 || prev.trim() === "";
+    if (atBoundary) {
+      lines[i] = `# ${m[1].toUpperCase()}: ${m[2]}`;
+    }
+  }
+
+  // 3. Normalize bullet glyphs to `- `. Single asterisk + space only;
+  //    `**bold**` won't match because there's no space between the
+  //    asterisks.
+  for (let i = 0; i < lines.length; i++) {
+    lines[i] = lines[i].replace(/^(\s*)[•·*](\s+)/, "$1-$2");
+  }
+
+  return lines.join("\n");
+}
+
 export function parseDeckMarkdown(source: string): ParsedDeck {
   const issues: ParseIssue[] = [];
-  const lines = source.split(/\r?\n/);
+  const lines = normalizeLLMResponse(source).split(/\r?\n/);
 
   /* ---- frontmatter ---- */
   const meta: ParsedDeck["meta"] = { tags: [] };
@@ -206,8 +260,20 @@ function parseSection(sec: {
         return { card: null, issues };
       }
       const options: MCQOption[] = [];
-      let explanation: string | undefined;
       const explLines: string[] = [];
+
+      // If no body line has a `- ` bullet, the user probably pasted
+      // rendered markdown that lost its bullets entirely. Fall back to
+      // treating each non-empty bare line as an option.
+      //
+      // Don't try to be clever about detecting which bare line is the
+      // explanation — Czech sentences are short enough that any
+      // sentence-shaped heuristic misfires. We just lose the
+      // explanation in the bullet-stripped fallback; the user can edit
+      // the card afterwards if they want it back. Options +
+      // correctness still parse fine.
+      const hasBullets = trimmedBody.some((l) => /^-\s+/.test(l.trim()));
+
       for (const raw of trimmedBody) {
         const l = raw.trim();
         if (!l) continue;
@@ -219,9 +285,12 @@ function parseSection(sec: {
           explLines.push(l.slice(2));
         } else if (l.startsWith(">")) {
           explLines.push(l.slice(1).trim());
+        } else if (!hasBullets) {
+          const correct = l.startsWith("!");
+          options.push({ text: (correct ? l.slice(1) : l).trim(), correct });
         }
       }
-      if (explLines.length) explanation = explLines.join("\n").trim();
+      const explanation = explLines.length ? explLines.join("\n").trim() : undefined;
       if (options.length < 2) {
         issues.push({ line, message: "MCQ: needs at least 2 options", severity: "error" });
         return { card: null, issues };
@@ -266,24 +335,41 @@ function parseSection(sec: {
       // Find the first fenced code block in the body.
       const fenceStart = trimmedBody.findIndex((l) => /^```/.test(l.trim()));
       if (fenceStart === -1) {
+        // Fence-stripped fallback: rendered copy from a chat UI may
+        // have lost the ``` markers entirely. Treat the entire body as
+        // the expected code, language = txt (we can't know what it was).
+        const expected = trimmedBody.join("\n").trim();
+        if (!expected) {
+          issues.push({
+            line,
+            message: "CODE: no code body found",
+            severity: "error",
+          });
+          return { card: null, issues };
+        }
         issues.push({
           line,
-          message: "CODE: no fenced code block found",
-          severity: "error",
+          message:
+            "CODE: no ``` fence found — treating entire body as code with language=txt (paste likely lost the code-fence markers)",
+          severity: "warning",
         });
-        return { card: null, issues };
+        return { card: { type: "code", prompt, language: "txt", expected }, issues };
       }
       const lang = trimmedBody[fenceStart].trim().replace(/^```/, "").trim() || "txt";
       const fenceEnd = trimmedBody.findIndex(
         (l, i) => i > fenceStart && /^```\s*$/.test(l.trim()),
       );
       if (fenceEnd === -1) {
+        // Opening fence present but no closing — common when rendered
+        // copy preserves the language marker only. Treat rest of body
+        // as code.
+        const expected = trimmedBody.slice(fenceStart + 1).join("\n").trim();
         issues.push({
           line,
-          message: "CODE: code block not closed with ```",
-          severity: "error",
+          message: "CODE: code block not closed with ``` — treating rest of body as code",
+          severity: "warning",
         });
-        return { card: null, issues };
+        return { card: { type: "code", prompt, language: lang, expected }, issues };
       }
       const expected = trimmedBody.slice(fenceStart + 1, fenceEnd).join("\n");
       return { card: { type: "code", prompt, language: lang, expected }, issues };

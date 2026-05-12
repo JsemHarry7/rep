@@ -5,10 +5,24 @@
  * Gemini, returns output in our markdown card format (the same one
  * parseDeckMarkdown understands).
  *
- * Prompts are intentionally strict about output format — the model
- * must return ONLY cards, no preamble. Tested empirically; tweak in
- * isolation if a model starts wrapping output in ```markdown fences
- * (we strip those at parse time as a safety net).
+ * Output wrapping policy
+ * ----------------------
+ * The model is instructed to wrap the WHOLE response in a single
+ * 4-backtick markdown code fence. Two reasons:
+ *
+ *  1. The chat UI then shows a prominent "Copy" button on that block
+ *     which preserves the raw markdown — way more robust than asking
+ *     the user to select-copy rendered HTML, which strips `#`, `-`,
+ *     `>`, ` ``` `, etc.
+ *
+ *  2. 4 backticks let us still use the normal 3-backtick fences for
+ *     CODE cards inside the wrapper (CommonMark allows nested fences
+ *     as long as the outer has more ticks than the inner).
+ *
+ * parseDeckMarkdown's normalizeLLMResponse strips the outer fence and
+ * also repairs common render-stripped damage (missing `#`, `•` bullets,
+ * etc.), so even users who fail to use the Copy button usually get
+ * usable cards.
  */
 
 export interface Preset {
@@ -18,14 +32,14 @@ export interface Preset {
   build: (source: string) => string;
 }
 
-const HEADER = `You generate study flashcards. Return ONLY markdown cards in the exact format shown — no preamble, no commentary, no closing notes, no \`\`\`markdown fences.
+const HEADER = `You generate study flashcards. Output rules — BOTH must be obeyed:
 
-The input may be EITHER:
-  A) Raw study material (textbook chapter, notes, transcript, definitions) — generate cards strictly from this content; do not invent facts.
-  B) A topic name only (e.g., "Romeo a Julie", "Pythagorova věta") — generate cards from your own knowledge of the topic; be accurate.
+1. Wrap your ENTIRE response in a single 4-backtick markdown code fence so the user gets a "Copy" button that preserves raw markdown. Output nothing outside the fence — no preamble, no commentary, no closing notes.
+2. Inside that wrapper, use the card format below. For CODE cards, use a regular 3-backtick fence (it nests fine inside the 4-backtick wrapper).
 
-Format reference:
+Output template (the whole reply):
 
+\`\`\`\`markdown
 # Q: <question>
 A: <answer — can span multiple lines>
 
@@ -45,6 +59,11 @@ A: <answer — can span multiple lines>
 \`\`\`lang
 expected code
 \`\`\`
+\`\`\`\`
+
+The input may be EITHER:
+  A) Raw study material (textbook chapter, notes, transcript, definitions) — generate cards strictly from this content; do not invent facts.
+  B) A topic name only (e.g., "Romeo a Julie", "Pythagorova věta") — generate cards from your own knowledge of the topic; be accurate.
 
 Rules:
 - Match the user's language (Czech ↔ English). If the input is Czech, output Czech cards.
