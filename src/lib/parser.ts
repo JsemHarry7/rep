@@ -109,10 +109,17 @@ const HEADER_TYPES: Record<string, CardType> = {
  * be misread as a new card.
  */
 export function normalizeLLMResponse(src: string): string {
-  // 1. Strip outer code fences (handles 3, 4, 5 backticks; with or
-  //    without language tag; with or without trailing newline).
-  src = src.replace(/^\s*`{3,5}(?:markdown|md)?\s*\n/, "");
-  src = src.replace(/\n`{3,5}\s*$/, "");
+  // 1. Strip outer code fences IFF a start-fence is present. Coupling
+  //    start and end together matters when the LAST card is a CODE
+  //    card — its closing 3-backtick fence sits at the end of the
+  //    paste, and previously the end-fence regex was eating it,
+  //    leaving the CODE parser without a closing fence and surfacing
+  //    a spurious "not closed" warning.
+  const startMatch = /^\s*`{3,5}(?:markdown|md)?\s*\n/.exec(src);
+  if (startMatch) {
+    src = src.slice(startMatch[0].length);
+    src = src.replace(/\n`{3,5}\s*$/, "");
+  }
   src = src.trim();
 
   const lines = src.split(/\r?\n/);

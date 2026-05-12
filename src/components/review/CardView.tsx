@@ -15,18 +15,30 @@ interface CardViewProps {
 }
 
 export function CardView({ card, revealed, onReveal }: CardViewProps) {
+  // key={card.id} forces React to unmount/remount the per-type subview
+  // on every card switch. Without it, useState(...) inside MCQView /
+  // FreeView / CodeView keeps the previous card's selection / typed
+  // answer / code draft. With it, each card starts fresh.
   return (
     <article>
       <div className="data text-[10px] uppercase tracking-widest text-ink-muted mb-6">
         {card.type}
       </div>
-      {card.type === "qa" && <QAView card={card} revealed={revealed} />}
-      {card.type === "cloze" && <ClozeView card={card} revealed={revealed} />}
-      {card.type === "mcq" && (
-        <MCQView card={card} revealed={revealed} onReveal={onReveal} />
+      {card.type === "qa" && (
+        <QAView key={card.id} card={card} revealed={revealed} />
       )}
-      {card.type === "free" && <FreeView card={card} revealed={revealed} />}
-      {card.type === "code" && <CodeView card={card} revealed={revealed} />}
+      {card.type === "cloze" && (
+        <ClozeView key={card.id} card={card} revealed={revealed} />
+      )}
+      {card.type === "mcq" && (
+        <MCQView key={card.id} card={card} revealed={revealed} onReveal={onReveal} />
+      )}
+      {card.type === "free" && (
+        <FreeView key={card.id} card={card} revealed={revealed} />
+      )}
+      {card.type === "code" && (
+        <CodeView key={card.id} card={card} revealed={revealed} />
+      )}
     </article>
   );
 }
