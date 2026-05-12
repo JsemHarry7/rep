@@ -16,7 +16,10 @@ import type { Collection, Deck, DeckId } from "@/types";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { useAppStore } from "@/lib/store";
+import { useCloudAuth } from "@/lib/cloudAuth";
 import { allTags } from "@/lib/collections";
+import { createCollectionShare } from "@/lib/shareApi";
+import { useCombinedContent } from "@/lib/data";
 
 interface Props {
   open: boolean;
@@ -60,6 +63,13 @@ function DialogBody({
   const createCollection = useAppStore((s) => s.createCollection);
   const updateCollection = useAppStore((s) => s.updateCollection);
   const deleteCollection = useAppStore((s) => s.deleteCollection);
+  const isCloudUser = useCloudAuth((s) => s.status === "signed-in");
+  const { cards: allCardsUniverse } = useCombinedContent();
+
+  const [shareLink, setShareLink] = useState<string | null>(null);
+  const [shareBusy, setShareBusy] = useState(false);
+  const [shareError, setShareError] = useState<string | null>(null);
+  const [shareCopied, setShareCopied] = useState(false);
 
   const [title, setTitle] = useState(editing?.title ?? "");
   const [description, setDescription] = useState(editing?.description ?? "");
@@ -137,6 +147,30 @@ function DialogBody({
     }
     deleteCollection(editing.id);
     onClose();
+  };
+
+  const handleShare = async () => {
+    if (!editing) return;
+    setShareBusy(true);
+    setShareError(null);
+    const r = await createCollectionShare(editing, allDecks, allCardsUniverse);
+    setShareBusy(false);
+    if (r.ok) {
+      setShareLink(r.data.url);
+    } else {
+      setShareError(r.message);
+    }
+  };
+
+  const handleCopyShare = async () => {
+    if (!shareLink) return;
+    try {
+      await navigator.clipboard.writeText(shareLink);
+      setShareCopied(true);
+      window.setTimeout(() => setShareCopied(false), 2200);
+    } catch {
+      /* swallow */
+    }
   };
 
   return (
@@ -298,6 +332,56 @@ function DialogBody({
                   : "decků"}{" "}
               s tagem <span className="data">#{tag.trim()}</span>.
             </p>
+          )}
+        </div>
+      )}
+
+      {/* Share section — only visible when editing an existing collection
+          AND user is signed in (no point sharing for non-cloud users since
+          the bundle would be too big for the hash-URL fallback). */}
+      {editing && isCloudUser && (
+        <div className="hairline rounded-md p-4 bg-surface-elev">
+          <div className="data text-[10px] uppercase tracking-widest text-accent mb-2">
+            sdílet · krátký link
+          </div>
+          {shareLink ? (
+            <>
+              <p className="prose text-xs text-ink-dim mb-2 max-w-prose">
+                Bundle decks + metadata uložen. Otevře kdokoliv (i bez
+                účtu), naimportuje{" "}
+                <span className="data">vše additivně</span> — recipient
+                neztrácí žádné svoje decky.
+              </p>
+              <input
+                type="text"
+                value={shareLink}
+                readOnly
+                onFocus={(e) => e.currentTarget.select()}
+                className="form-input data text-sm mb-2"
+              />
+              <Button onClick={handleCopyShare} variant="primary" size="sm">
+                {shareCopied ? "Zkopírováno ✓" : "Kopírovat link"}
+              </Button>
+            </>
+          ) : (
+            <>
+              <p className="prose text-xs text-ink-dim mb-2 max-w-prose">
+                Vytvoří krátký <span className="data">/s/abc12345</span> link.
+                Recipient klikne → uvidí náhled → naimportuje všechny decky
+                + tuhle kolekci jako nové.
+              </p>
+              <Button
+                onClick={handleShare}
+                disabled={shareBusy}
+                variant="ghost"
+                size="sm"
+              >
+                {shareBusy ? "Vytvářím…" : "Vytvořit krátký link"}
+              </Button>
+            </>
+          )}
+          {shareError && (
+            <p className="data text-xs text-bad mt-2 break-all">{shareError}</p>
           )}
         </div>
       )}

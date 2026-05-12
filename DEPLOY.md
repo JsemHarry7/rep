@@ -145,12 +145,27 @@ introduced since first deploy:
 
   • `allowed_emails` — runtime allowlist (Settings UI)
   • `shared_decks` — server-stored deck shares (`/s/:id` short URLs)
+  • `user_state_history` — snapshot rollback / safety net
+  • `shared_decks.kind` column — distinguishes deck shares from
+    collection bundle shares
 
 If you originally deployed before these existed, re-run:
 
 ```sh
 wrangler d1 execute rep --file=./schema.sql --remote
 ```
+
+For the **`shared_decks.kind` column** specifically — SQLite doesn't
+support `ADD COLUMN IF NOT EXISTS`, so the `CREATE TABLE IF NOT EXISTS`
+above won't add it to a pre-existing table. Run this **once**:
+
+```sh
+wrangler d1 execute rep --remote \
+  --command "ALTER TABLE shared_decks ADD COLUMN kind TEXT NOT NULL DEFAULT 'deck'"
+```
+
+If you get a "duplicate column" error, the column already exists and
+you can ignore it.
 
 ## Adding a new authorized user
 

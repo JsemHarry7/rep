@@ -3,6 +3,11 @@ import { useLocation } from "wouter";
 import { parseShareHash } from "@/lib/deckExport";
 import { parseDeckMarkdown, type ParsedDeck } from "@/lib/parser";
 import { fetchShare } from "@/lib/shareApi";
+import {
+  importCollectionBundle,
+  type CollectionBundle,
+  type ImportSummary,
+} from "@/lib/collectionBundle";
 import { useAppStore } from "@/lib/store";
 import { Button } from "@/components/ui/Button";
 
@@ -42,12 +47,24 @@ export function ShareReceivePage({ shortId }: Props = {}) {
     return () => window.removeEventListener("hashchange", handler);
   }, [shortId]);
 
-  // Short-id mode state — fetched on mount.
-  const [serverShare, setServerShare] = useState<{
-    parsed: ParsedDeck;
-    title: string;
-    views: number;
-  } | null>(null);
+  // Short-id mode state — fetched on mount. Two flavors:
+  // - deck:        parsed = ParsedDeck (markdown → cards)
+  // - collection:  bundle = CollectionBundle (decks + metadata)
+  const [serverShare, setServerShare] = useState<
+    | {
+        kind: "deck";
+        parsed: ParsedDeck;
+        title: string;
+        views: number;
+      }
+    | {
+        kind: "collection";
+        bundle: CollectionBundle;
+        title: string;
+        views: number;
+      }
+    | null
+  >(null);
   const [serverError, setServerError] = useState<string | null>(null);
   const [serverLoading, setServerLoading] = useState(!!shortId);
 
@@ -63,12 +80,24 @@ export function ShareReceivePage({ shortId }: Props = {}) {
         setServerError(r.message);
         return;
       }
-      const parsedDeck = parseDeckMarkdown(r.data.deckMd);
-      setServerShare({
-        parsed: parsedDeck,
-        title: r.data.title,
-        views: r.data.views,
-      });
+      if (r.data.kind === "collection" && r.data.bundle) {
+        setServerShare({
+          kind: "collection",
+          bundle: r.data.bundle,
+          title: r.data.title,
+          views: r.data.views,
+        });
+      } else if (r.data.kind === "deck" && r.data.deckMd) {
+        const parsedDeck = parseDeckMarkdown(r.data.deckMd);
+        setServerShare({
+          kind: "deck",
+          parsed: parsedDeck,
+          title: r.data.title,
+          views: r.data.views,
+        });
+      } else {
+        setServerError("Share je poškozený — chybí obsah.");
+      }
     })();
     return () => {
       cancelled = true;
@@ -86,13 +115,23 @@ export function ShareReceivePage({ shortId }: Props = {}) {
     : hashResult && "error" in hashResult
       ? hashResult.error
       : null;
+
+  // Hash mode is always deck-kind (legacy). Short-id mode can be either.
+  const collectionBundle: CollectionBundle | null =
+    serverShare?.kind === "collection" ? serverShare.bundle : null;
+
   const parsed: ParsedDeck | null = shortId
-    ? serverShare?.parsed ?? null
+    ? serverShare?.kind === "deck"
+      ? serverShare.parsed
+      : null
     : hashResult && !("error" in hashResult)
       ? hashResult
       : null;
+
   const sourceLabel = shortId
-    ? `sdíleno přes krátký link · /s/${shortId}`
+    ? collectionBundle
+      ? `sdílena kolekce · /s/${shortId}`
+      : `sdíleno přes krátký link · /s/${shortId}`
     : "sdíleno přes link";
   const viewsLabel = shortId && serverShare ? serverShare.views : null;
   const loading = shortId && serverLoading;
@@ -113,6 +152,19 @@ export function ShareReceivePage({ shortId }: Props = {}) {
     });
     addCards(deck.id, parsed.cards);
     setImported({ deckId: deck.id, title: deck.title });
+  };
+
+  const [collectionSummary, setCollectionSummary] = useState<ImportSummary | null>(
+    null,
+  );
+  const handleImportCollection = () => {
+    if (!collectionBundle) return;
+    const summary = importCollectionBundle(collectionBundle);
+    setCollectionSummary(summary);
+    setImported({
+      deckId: summary.collectionId,
+      title: summary.collectionTitle,
+    });
   };
 
   return (
@@ -155,12 +207,21 @@ export function ShareReceivePage({ shortId }: Props = {}) {
           <ImportedView
             title={imported.title}
             deckId={imported.deckId}
+            summary={collectionSummary}
             onClose={() => navigate("/home")}
           />
         ) : loading ? (
           <LoadingView />
         ) : error ? (
           <ErrorView message={error} onClose={() => navigate("/home")} />
+        ) : collectionBundle ? (
+          <CollectionPreview
+            bundle={collectionBundle}
+            sourceLabel={sourceLabel}
+            viewsLabel={viewsLabel}
+            onImport={handleImportCollection}
+            onCancel={() => navigate("/home")}
+          />
         ) : parsed ? (
           <PreviewView
             parsed={parsed}
@@ -296,16 +357,131 @@ function PreviewView({
   );
 }
 
+function CollectionPreview({
+  bundle,
+  sourceLabel,
+  viewsLabel,
+  onImport,
+  onCancel,
+}: {
+  bundle: CollectionBundle;
+  sourceLabel: string;
+  viewsLabel: number | null;
+  onImport: () => void;
+  onCancel: () => void;
+}) {
+  const totalCards = bundle.decks.reduce(
+    (sum, d) => sum + (d.md.match(/^#\s+(Q|CLOZE|MCQ|FREE|CODE)\s*:/gim)?.length ?? 0),
+    0,
+  );
+
+  return (
+    <>
+      <div className="data text-[10px] uppercase tracking-widest text-accent mb-4 flex items-center gap-3 flex-wrap">
+        <span>{sourceLabel}</span>
+        {viewsLabel !== null && (
+          <span className="text-ink-muted">· {viewsLabel}× otevřeno</span>
+        )}
+        <span className="text-ink-muted">·</span>
+        <span>
+          kolekce {bundle.kind === "tag" ? "podle tagu" : "ruční"}
+        </span>
+      </div>
+      <h1 className="display text-5xl sm:text-6xl mb-3 leading-tight">
+        {bundle.title}
+      </h1>
+      {bundle.description && (
+        <p className="prose text-base text-ink-dim mb-3 max-w-prose">
+          {bundle.description}
+        </p>
+      )}
+      <div className="data text-[10px] uppercase tracking-widest text-ink-muted flex flex-wrap items-center gap-3 mb-8">
+        <span>
+          {bundle.decks.length}{" "}
+          {bundle.decks.length === 1
+            ? "deck"
+            : bundle.decks.length < 5
+              ? "decky"
+              : "decků"}
+        </span>
+        <span>
+          {totalCards}{" "}
+          {totalCards === 1 ? "karta" : totalCards < 5 ? "karty" : "karet"}
+        </span>
+        {bundle.kind === "tag" && bundle.tag && (
+          <span>tag <span className="text-ink-dim">#{bundle.tag}</span></span>
+        )}
+      </div>
+
+      <div className="hairline rounded-md p-4 mb-6 bg-surface-elev">
+        <div className="data text-[10px] uppercase tracking-widest text-ok mb-2">
+          ✓ safe import
+        </div>
+        <p className="prose text-sm text-ink-dim max-w-prose">
+          Import je <span className="data text-ink">purely additive</span> —
+          přidá {bundle.decks.length} nových decků a nová kolekci do tvých
+          existujících. Žádné tvoje data se nepřepíšou ani nesmažou.
+        </p>
+      </div>
+
+      <details className="mb-10">
+        <summary className="data text-[10px] uppercase tracking-widest text-ink-muted cursor-pointer hover:text-ink transition-colors mb-3">
+          obsažené decky ({bundle.decks.length})
+        </summary>
+        <ul className="divide-y divide-line border-y border-line mt-3">
+          {bundle.decks.slice(0, 20).map((d, i) => (
+            <li key={d.originalId} className="px-1 py-2 flex items-baseline gap-3">
+              <span className="data text-[10px] text-ink-muted w-6 shrink-0 tabular-nums">
+                {String(i + 1).padStart(2, "0")}
+              </span>
+              <div className="flex-1 min-w-0">
+                <div className="prose text-sm text-ink truncate">{d.title}</div>
+                {(d.tags?.length ?? 0) > 0 && (
+                  <div className="data text-[10px] uppercase tracking-widest text-ink-muted truncate">
+                    {d.tags.map((t) => `#${t}`).join(" ")}
+                  </div>
+                )}
+              </div>
+            </li>
+          ))}
+          {bundle.decks.length > 20 && (
+            <li className="px-1 py-2 data text-[10px] uppercase tracking-widest text-ink-muted">
+              … a dalších {bundle.decks.length - 20}
+            </li>
+          )}
+        </ul>
+      </details>
+
+      <div className="flex items-center gap-3 flex-wrap">
+        <Button
+          onClick={onImport}
+          variant="primary"
+          size="lg"
+          disabled={bundle.decks.length === 0}
+        >
+          Importovat kolekci + decky <span aria-hidden>→</span>
+        </Button>
+        <Button onClick={onCancel} variant="ghost" size="md">
+          Zrušit
+        </Button>
+      </div>
+    </>
+  );
+}
+
 function ImportedView({
   title,
   deckId,
+  summary,
   onClose,
 }: {
   title: string;
   deckId: string;
+  summary: ImportSummary | null;
   onClose: () => void;
 }) {
   const [, navigate] = useLocation();
+  const isCollection = summary !== null;
   return (
     <>
       <div className="data text-[10px] uppercase tracking-widest text-ok mb-4">
@@ -314,17 +490,42 @@ function ImportedView({
       <h1 className="display text-5xl sm:text-6xl mb-3">
         <span className="italic">{title}</span> už je tvůj.
       </h1>
-      <p className="prose text-base text-ink-dim mb-10 max-w-prose">
-        Deck najdeš v sekci Decks a v sidebar. Můžeš začít opakovat hned.
-      </p>
+      {isCollection ? (
+        <p className="prose text-base text-ink-dim mb-10 max-w-prose">
+          Přidáno <span className="text-ink">{summary.decksAdded}</span>{" "}
+          {summary.decksAdded === 1
+            ? "deck"
+            : summary.decksAdded < 5
+              ? "decky"
+              : "decků"}{" "}
+          s <span className="text-ink">{summary.cardsAdded}</span>{" "}
+          {summary.cardsAdded === 1
+            ? "kartou"
+            : summary.cardsAdded < 5
+              ? "kartami"
+              : "kartami"}{" "}
+          a nová kolekce <span className="text-accent">{title}</span>. Tvoje
+          předchozí decky zůstaly netknuté.
+        </p>
+      ) : (
+        <p className="prose text-base text-ink-dim mb-10 max-w-prose">
+          Deck najdeš v sekci Decks a v sidebar. Můžeš začít opakovat hned.
+        </p>
+      )}
       <div className="flex items-center gap-3 flex-wrap">
-        <Button
-          onClick={() => navigate(`/decks/${encodeURIComponent(deckId)}`)}
-          variant="primary"
-          size="md"
-        >
-          Otevřít deck →
-        </Button>
+        {isCollection ? (
+          <Button onClick={() => navigate("/decks")} variant="primary" size="md">
+            Otevřít Decks →
+          </Button>
+        ) : (
+          <Button
+            onClick={() => navigate(`/decks/${encodeURIComponent(deckId)}`)}
+            variant="primary"
+            size="md"
+          >
+            Otevřít deck →
+          </Button>
+        )}
         <Button onClick={onClose} variant="ghost" size="md">
           Zpět domů
         </Button>

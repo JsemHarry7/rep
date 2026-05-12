@@ -43,23 +43,38 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const session = await requireSession(request, env);
   if (session instanceof Response) return session;
 
-  let body: { deckMd?: string; title?: string; cardCount?: number };
+  let body: {
+    deckMd?: string;
+    bundle?: string;
+    title?: string;
+    cardCount?: number;
+    kind?: string;
+  };
   try {
     body = await request.json();
   } catch {
     return errorResponse("Invalid JSON body.", 400);
   }
 
-  const deckMd = typeof body.deckMd === "string" ? body.deckMd : "";
+  // Discriminate: either a single deck (deckMd) or a collection bundle
+  // (bundle, already-JSON-stringified by the client). We store both
+  // shapes in deck_md and remember which is which via the `kind` column.
+  const kind = body.kind === "collection" ? "collection" : "deck";
+  const payload = kind === "collection" ? body.bundle ?? "" : body.deckMd ?? "";
   const title = typeof body.title === "string" ? body.title.trim() : "";
   const cardCount = typeof body.cardCount === "number" ? body.cardCount : 0;
 
-  if (!deckMd || !title) {
-    return errorResponse("Missing deckMd or title.", 400);
-  }
-  if (new TextEncoder().encode(deckMd).byteLength > MAX_DECK_BYTES) {
+  if (!payload || !title) {
     return errorResponse(
-      `Deck je moc velký (limit ${MAX_DECK_BYTES / 1024} KB).`,
+      kind === "collection"
+        ? "Missing bundle or title."
+        : "Missing deckMd or title.",
+      400,
+    );
+  }
+  if (new TextEncoder().encode(payload).byteLength > MAX_DECK_BYTES) {
+    return errorResponse(
+      `Payload je moc velký (limit ${MAX_DECK_BYTES / 1024} KB).`,
       413,
       "too_large",
     );
@@ -72,10 +87,10 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     id = generateShareId();
     try {
       await env.DB.prepare(
-        `INSERT INTO shared_decks (id, owner_id, title, card_count, deck_md, created_at)
-         VALUES (?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO shared_decks (id, owner_id, title, card_count, deck_md, kind, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
       )
-        .bind(id, session.sub, title.slice(0, 200), cardCount, deckMd, now)
+        .bind(id, session.sub, title.slice(0, 200), cardCount, payload, kind, now)
         .run();
       inserted = true;
     } catch (e) {
@@ -92,6 +107,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     {
       id,
       url: `${url.origin}/s/${id}`,
+      kind,
       createdAt: now,
     },
     { status: 201 },
@@ -103,7 +119,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   if (session instanceof Response) return session;
 
   const result = await env.DB.prepare(
-    `SELECT id, title, card_count, created_at, views
+    `SELECT id, title, card_count, kind, created_at, views
      FROM shared_decks
      WHERE owner_id = ?
      ORDER BY created_at DESC`,
@@ -113,6 +129,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
       id: string;
       title: string;
       card_count: number;
+      kind: string;
       created_at: number;
       views: number;
     }>();
@@ -122,6 +139,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
       id: r.id,
       title: r.title,
       cardCount: r.card_count,
+      kind: (r.kind as "deck" | "collection") ?? "deck",
       createdAt: r.created_at,
       views: r.views,
     })),

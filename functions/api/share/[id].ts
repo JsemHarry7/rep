@@ -27,7 +27,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, params }) => {
   }
 
   const row = await env.DB.prepare(
-    `SELECT id, title, card_count, deck_md, created_at, views
+    `SELECT id, title, card_count, deck_md, kind, created_at, views
      FROM shared_decks
      WHERE id = ?`,
   )
@@ -37,6 +37,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, params }) => {
       title: string;
       card_count: number;
       deck_md: string;
+      kind: string | null;
       created_at: number;
       views: number;
     }>();
@@ -60,11 +61,18 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, params }) => {
     /* swallow */
   }
 
+  // `kind` was added later — pre-migration rows can be NULL, treat as 'deck'.
+  const kind = (row.kind as "deck" | "collection") ?? "deck";
   return jsonResponse({
     id: row.id,
     title: row.title,
     cardCount: row.card_count,
-    deckMd: row.deck_md,
+    kind,
+    // For backwards compat, expose `deckMd` for deck shares and `bundle`
+    // for collection shares — same underlying column, but the named
+    // fields make the client branch cleaner.
+    deckMd: kind === "deck" ? row.deck_md : null,
+    bundle: kind === "collection" ? row.deck_md : null,
     createdAt: row.created_at,
     views: row.views + 1,
   });

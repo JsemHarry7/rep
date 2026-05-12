@@ -78,7 +78,7 @@ export function SharedDecksList() {
     <div className="hairline rounded-md p-4 sm:p-5 bg-surface-elev">
       <div className="flex items-baseline justify-between mb-1 gap-3 flex-wrap">
         <h3 className="data text-[10px] uppercase tracking-widest text-accent">
-          sdílené decky · krátké linky
+          sdílené decky & kolekce · krátké linky
         </h3>
       </div>
       <p className="prose text-xs text-ink-dim mb-4 max-w-prose">
@@ -111,7 +111,11 @@ export function SharedDecksList() {
                   {item.title}
                 </div>
                 <div className="data text-[10px] uppercase tracking-widest text-ink-muted mt-0.5">
-                  /s/{item.id} · {item.cardCount} karet · {item.views}× otevřeno ·{" "}
+                  /s/{item.id} ·{" "}
+                  <span className={item.kind === "collection" ? "text-accent" : ""}>
+                    {item.kind === "collection" ? "kolekce" : "deck"}
+                  </span>{" "}
+                  · {item.cardCount} karet · {item.views}× otevřeno ·{" "}
                   {new Date(item.createdAt).toLocaleDateString("cs", {
                     day: "numeric",
                     month: "short",

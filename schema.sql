@@ -35,11 +35,23 @@ CREATE TABLE IF NOT EXISTS allowed_emails (
   added_at INTEGER NOT NULL
 );
 
--- Server-stored deck shares. Only cloud users (allowlisted, signed in)
--- can create one — the short /s/:id URL then opens for anyone, no
--- account needed. The full deck content lives here as serialized
--- markdown so the receive flow is one round-trip from the recipient's
--- browser. Owner can revoke from Settings.
+-- Server-stored shares. Two kinds, discriminated by `kind`:
+--
+--   'deck'        deck_md holds serialized markdown (one deck)
+--   'collection'  deck_md holds a JSON bundle: {kind, title, description,
+--                 tag?, decks: [{title, description?, tags, md}]}
+--                 — bundled member decks travel with the collection
+--                 metadata so recipients import everything in one shot
+--                 without dangling references.
+--
+-- We overload the deck_md column to hold either representation rather
+-- than adding a separate `bundle_json` column — keeps the migration
+-- trivial (just ADD COLUMN kind with default 'deck'), and the receive
+-- side branches on `kind` anyway.
+--
+-- Only cloud users (allowlisted, signed in) can create one — the short
+-- /s/:id URL then opens for anyone, no account needed. Owner can
+-- revoke from Settings.
 --
 -- Compare with the original /share#<base64> flow which never touches
 -- the server but produces 1-4 KB URLs — that one still works for
@@ -48,8 +60,9 @@ CREATE TABLE IF NOT EXISTS shared_decks (
   id TEXT PRIMARY KEY,            -- 8-char base36 random id (~48 bits)
   owner_id TEXT NOT NULL,         -- creator's user.id (Google sub)
   title TEXT NOT NULL,            -- denormalized for owner's listing
-  card_count INTEGER NOT NULL,    -- denormalized stats
-  deck_md TEXT NOT NULL,          -- serialized markdown (same as /share#)
+  card_count INTEGER NOT NULL,    -- denormalized stats (deck: cards, coll: sum across decks)
+  deck_md TEXT NOT NULL,          -- markdown (kind='deck') OR JSON bundle (kind='collection')
+  kind TEXT NOT NULL DEFAULT 'deck', -- 'deck' | 'collection'
   created_at INTEGER NOT NULL,
   views INTEGER NOT NULL DEFAULT 0,
   FOREIGN KEY (owner_id) REFERENCES users(id)
@@ -57,6 +70,16 @@ CREATE TABLE IF NOT EXISTS shared_decks (
 
 CREATE INDEX IF NOT EXISTS idx_shared_decks_owner
   ON shared_decks(owner_id, created_at DESC);
+
+-- Note on migrations: SQLite doesn't support `ADD COLUMN IF NOT
+-- EXISTS`, so we can't auto-migrate existing shared_decks tables
+-- through this file. For deploys that predate the `kind` column,
+-- run this once manually:
+--
+--   wrangler d1 execute rep --remote \
+--     --command "ALTER TABLE shared_decks ADD COLUMN kind TEXT NOT NULL DEFAULT 'deck'"
+--
+-- Fresh deploys get `kind` from CREATE TABLE above and don't need it.
 
 -- Server-side snapshot history. On every push, the prior user_state
 -- row is archived here before being overwritten — so "I accidentally
