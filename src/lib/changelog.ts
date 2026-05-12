@@ -29,7 +29,7 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
-    version: "1.2.5",
+    version: "0.2.1",
     date: "2026-05-12",
     headline: "sdílení kolekcí + markdown všude",
     highlights: [
@@ -39,7 +39,7 @@ export const CHANGELOG: Release[] = [
     ],
   },
   {
-    version: "1.2.0",
+    version: "0.2.0",
     date: "2026-05-11",
     headline: "kolekce + tag-mode filter",
     highlights: [
@@ -50,7 +50,7 @@ export const CHANGELOG: Release[] = [
     ],
   },
   {
-    version: "1.1.5",
+    version: "0.1.1",
     date: "2026-05-11",
     headline: "blbuvzdorný sync",
     highlights: [
@@ -61,9 +61,9 @@ export const CHANGELOG: Release[] = [
     ],
   },
   {
-    version: "1.1.0",
+    version: "0.1.0",
     date: "2026-05-11",
-    headline: "auto-sync + mobile UX",
+    headline: "auto-sync, allowlist UI, krátké share linky",
     highlights: [
       "Auto-sync push (3s debounce) po editaci, smart pull na sign-in s dirty-flag protection",
       "SyncIndicator chip v MobileTopBar + StatusBar (synced/syncing/offline)",
@@ -74,7 +74,7 @@ export const CHANGELOG: Release[] = [
     ],
   },
   {
-    version: "1.0.5",
+    version: "0.0.2",
     date: "2026-05-10",
     headline: "performance, a11y, SEO",
     highlights: [
@@ -85,9 +85,9 @@ export const CHANGELOG: Release[] = [
     ],
   },
   {
-    version: "1.0.0",
+    version: "0.0.1",
     date: "2026-05-08",
-    headline: "první stabilní release",
+    headline: "první shipped alpha",
     highlights: [
       "5 typů karet: Q/A, Cloze, MCQ, Free, Code",
       "4 review módy: SRS (Anki SM-2), Cram, Sprint, Boss",
