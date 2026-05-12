@@ -106,14 +106,55 @@ function b64UrlDecode(b64: string): Uint8Array {
   return bytes;
 }
 
-/* ---------- Allowlist ---------- */
+/* ---------- Allowlist ----------
+ *
+ * Sources, in order of precedence:
+ *   1. OWNER_EMAIL env var — single email, always allowed, can manage
+ *      the dynamic allowlist via the admin endpoints.
+ *   2. AUTHORIZED_EMAILS env var — comma-separated, static, redeploy
+ *      to change. Kept for backwards-compat; new entries should go in
+ *      the D1 table instead.
+ *   3. allowed_emails D1 table — managed at runtime from the owner's
+ *      Settings UI (no redeploy).
+ *
+ * Any source matching = access granted. Owner alone can manage table.
+ */
 
-export function isAllowed(email: string, allowed: string): boolean {
-  const list = allowed
+export function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+export function isOwner(email: string, ownerEmail: string | undefined): boolean {
+  if (!ownerEmail) return false;
+  return normalizeEmail(email) === normalizeEmail(ownerEmail);
+}
+
+function inEnvList(email: string, raw: string | undefined): boolean {
+  if (!raw) return false;
+  const target = normalizeEmail(email);
+  return raw
     .split(",")
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
-  return list.includes(email.toLowerCase());
+    .map((e) => normalizeEmail(e))
+    .filter(Boolean)
+    .includes(target);
+}
+
+interface AllowEnv {
+  DB?: D1Database;
+  OWNER_EMAIL?: string;
+  AUTHORIZED_EMAILS?: string;
+}
+
+export async function isAllowed(email: string, env: AllowEnv): Promise<boolean> {
+  if (isOwner(email, env.OWNER_EMAIL)) return true;
+  if (inEnvList(email, env.AUTHORIZED_EMAILS)) return true;
+  if (!env.DB) return false;
+  const row = await env.DB.prepare(
+    "SELECT 1 AS hit FROM allowed_emails WHERE email = ? LIMIT 1",
+  )
+    .bind(normalizeEmail(email))
+    .first<{ hit: number }>();
+  return !!row;
 }
 
 /* ---------- JSON response helpers ---------- */

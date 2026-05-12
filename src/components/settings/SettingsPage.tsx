@@ -6,6 +6,7 @@ import type { Deadline } from "@/types";
 import { Button } from "@/components/ui/Button";
 import { PWAInstall } from "@/components/PWAInstall";
 import { CloudSync } from "@/components/settings/CloudSync";
+import { AllowlistManager } from "@/components/settings/AllowlistManager";
 
 export function SettingsPage() {
   const [, navigate] = useLocation();
@@ -157,6 +158,11 @@ export function SettingsPage() {
           cloud sync
         </h2>
         <CloudSync />
+      </section>
+
+      {/* Owner-only — AllowlistManager auto-hides if !isOwner. */}
+      <section className="mb-12">
+        <AllowlistManager />
       </section>
 
       <section className="mb-12">

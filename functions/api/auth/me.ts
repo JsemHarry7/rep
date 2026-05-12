@@ -4,11 +4,12 @@
  * Frontend calls this on app load to detect existing session.
  */
 
-import { errorResponse, jsonResponse, readSession } from "../../lib/auth";
+import { errorResponse, isOwner, jsonResponse, readSession } from "../../lib/auth";
 
 interface Env {
   DB: D1Database;
   SESSION_SECRET: string;
+  OWNER_EMAIL?: string;
 }
 
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
@@ -32,6 +33,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
       email: row.email,
       name: row.name,
       lastSyncAt: row.last_sync_at,
+      isOwner: isOwner(row.email, env.OWNER_EMAIL),
     },
   });
 };

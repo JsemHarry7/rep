@@ -87,9 +87,14 @@ Add to the **Production** scope (and Preview if you use preview deploys):
 |---|---|
 | `VITE_GOOGLE_CLIENT_ID` | (Client ID from step 4) |
 | `GOOGLE_CLIENT_ID` | (same value, runtime version) |
-| `AUTHORIZED_EMAILS` | `kontakt@harrydeiml.ing,someone@example.com` (comma-separated, lowercase, no spaces) |
+| `OWNER_EMAIL` | your gmail — always allowed + can manage the rest from Settings (single email, no list) |
 | `SESSION_SECRET` | (random 32+ byte hex string — see below) |
 | `NODE_VERSION` | `22` |
+| `AUTHORIZED_EMAILS` *(optional)* | comma-separated static fallback list, kept for backwards compat. Spaces around commas are fine. Prefer adding friends via the Settings → Allowlist UI instead — no redeploy needed. |
+
+The OWNER_EMAIL is required for both managing the allowlist UI and as
+your own access. Everyone else is added at runtime from
+**Settings → Cloud access · Allowlist** once you sign in as the owner.
 
 Generate a session secret:
 
@@ -114,8 +119,9 @@ For `npm run dev` to talk to your local D1 + functions, use
 ```sh
 # create rep/.dev.vars (gitignored)
 echo "GOOGLE_CLIENT_ID=..." >> .dev.vars
-echo "AUTHORIZED_EMAILS=..." >> .dev.vars
+echo "OWNER_EMAIL=you@gmail.com" >> .dev.vars
 echo "SESSION_SECRET=..." >> .dev.vars
+# AUTHORIZED_EMAILS optional — leave it out and manage from the UI
 
 # .env (gitignored) — Vite reads this at build time
 echo "VITE_GOOGLE_CLIENT_ID=..." > .env.local
@@ -133,12 +139,22 @@ the env vars are set.
 
 ## Adding a new authorized user
 
-Edit `AUTHORIZED_EMAILS` in the Pages env vars, save, redeploy. The
-new email can sign in within a few minutes.
+Sign in as the `OWNER_EMAIL` and go to **Settings → Cloud access ·
+Allowlist**. Type the email, hit *přidat*. The new user can sign in
+immediately, no redeploy.
 
-To revoke: remove the email and redeploy. Existing sessions stay valid
-until they expire (30 days) — to revoke immediately, rotate
-`SESSION_SECRET`.
+To revoke: click *✕ odebrat* next to the email. Existing sessions for
+that user stay valid until they expire (30 days, or until they
+manually sign out) — to revoke immediately, rotate `SESSION_SECRET`,
+which invalidates *all* sessions including your own.
+
+### Legacy `AUTHORIZED_EMAILS` env var
+
+Still works as a static fallback. New deploys should leave it unset
+and manage everything from the UI. If you have a populated
+`AUTHORIZED_EMAILS` env var from before this change, those emails
+remain allowed; you can either migrate them to the D1 table via the UI
+or just leave them in the env var.
 
 ---
 
@@ -166,8 +182,12 @@ have a typo in env vars or you're using a different OAuth Client ID
 on the frontend than configured on the backend. They must match.
 
 **Sign-in fails with "not_authorized"**
-Email isn't in `AUTHORIZED_EMAILS`. Add it (lowercase, no spaces) and
-redeploy.
+The email Google sent isn't on the allowlist. The error response now
+includes the exact email it tried — check **Settings → Cloud sync**
+under the failing account, you'll see `Google poslal: …`. Make sure
+the owner adds *that exact string* (Google sometimes returns
+`Name.Surname@gmail.com` rather than `name.surname@gmail.com`
+depending on how the user registered).
 
 **Push returns 401 immediately after sign-in**
 Session cookie not being sent. Check that requests include

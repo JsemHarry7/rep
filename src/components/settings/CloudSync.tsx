@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { GoogleLogin, GoogleOAuthProvider } from "@react-oauth/google";
-import { useCloudAuth } from "@/lib/cloudAuth";
+import { getLastRejectedEmail, useCloudAuth } from "@/lib/cloudAuth";
 import { pullFromCloud, pushToCloud } from "@/lib/sync";
 import { Button } from "@/components/ui/Button";
 
@@ -110,14 +110,26 @@ function CloudSyncContent() {
   }
 
   if (status === "not-authorized") {
+    const rejected = getLastRejectedEmail();
     return (
       <div className="hairline border-bad rounded-md p-4 sm:p-5 bg-surface-elev">
         <div className="data text-[10px] uppercase tracking-widest text-bad mb-1">
           ✗ není na allowlistu
         </div>
+        {rejected && (
+          <p className="data text-xs text-ink mb-3 break-all">
+            <span className="text-ink-muted">Google poslal: </span>
+            {rejected}
+          </p>
+        )}
         <p className="prose text-sm text-ink-dim mb-4 max-w-prose">
           {errorMessage ??
             "Tvůj email není autorizovaný pro cloud sync. Pro přístup napiš na kontakt@harrydeiml.ing."}
+        </p>
+        <p className="prose text-xs text-ink-muted mb-4 max-w-prose">
+          Pošli admina <span className="data">přesně tenhle email</span> (i s
+          tečkami a velkými písmeny), at&apos; ho přidá. Google posílá email
+          tak, jak je registrovaný — ne nutně tak, jak ho píšeš.
         </p>
         <Button onClick={() => signOut()} variant="secondary" size="sm">
           Sign out

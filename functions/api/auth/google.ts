@@ -17,7 +17,8 @@ import {
 interface Env {
   DB: D1Database;
   GOOGLE_CLIENT_ID: string;
-  AUTHORIZED_EMAILS: string;
+  AUTHORIZED_EMAILS?: string;
+  OWNER_EMAIL?: string;
   SESSION_SECRET: string;
 }
 
@@ -69,11 +70,14 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   }
 
   const email = info.email.toLowerCase();
-  if (!env.AUTHORIZED_EMAILS || !isAllowed(email, env.AUTHORIZED_EMAILS)) {
-    return errorResponse(
-      "Tvůj email není na allowlistu. Pro přístup ke cloud syncu napiš na kontakt@harrydeiml.ing.",
-      403,
-      "not_authorized",
+  if (!(await isAllowed(email, env))) {
+    return jsonResponse(
+      {
+        error: "not_authorized",
+        message: `Email ${email} není na allowlistu. Pro přístup ke cloud syncu napiš na kontakt@harrydeiml.ing — pošli mu přesně tenhle email, ať ti ho přidá.`,
+        email,
+      },
+      { status: 403 },
     );
   }
 

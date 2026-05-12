@@ -22,3 +22,15 @@ CREATE TABLE IF NOT EXISTS user_state (
   client_id TEXT,                 -- which device wrote this; for diagnostics
   FOREIGN KEY (user_id) REFERENCES users(id)
 );
+
+-- Cloud-sync allowlist, managed at runtime from the owner's Settings UI
+-- (no redeploy needed when adding/removing access). The OWNER_EMAIL env
+-- var is always implicitly allowed and is the only account that can
+-- manage this table — the env var is the bootstrap so you can never
+-- lock yourself out of your own deploy. AUTHORIZED_EMAILS env var also
+-- still works as a static fallback for backwards compat.
+CREATE TABLE IF NOT EXISTS allowed_emails (
+  email TEXT PRIMARY KEY,         -- lowercased on insert
+  note TEXT,                      -- free-form: "kamarad ze tridy", "test"
+  added_at INTEGER NOT NULL
+);

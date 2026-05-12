@@ -21,6 +21,17 @@ export interface CloudUser {
   email: string;
   name: string | null;
   lastSyncAt: number | null;
+  /** Set by /api/auth/me — true iff signed-in email matches OWNER_EMAIL
+   *  env var on the backend. Owner sees the allowlist manager UI. */
+  isOwner: boolean;
+}
+
+/** Email that was rejected during the last sign-in attempt, if the
+ *  status flipped to `not-authorized`. Surfaced in the UI so the user
+ *  can see exactly what Google sent and ask the owner to add it. */
+let lastRejectedEmail: string | null = null;
+export function getLastRejectedEmail(): string | null {
+  return lastRejectedEmail;
 }
 
 export type AuthStatus =
@@ -82,8 +93,10 @@ export const useCloudAuth = create<AuthState>((set) => ({
       });
       const data = await resp.json().catch(() => ({}) as Record<string, unknown>);
       if (resp.ok) {
+        lastRejectedEmail = null;
         set({ user: data.user as CloudUser, status: "signed-in" });
       } else if (resp.status === 403) {
+        lastRejectedEmail = typeof data.email === "string" ? data.email : null;
         set({
           user: null,
           status: "not-authorized",
