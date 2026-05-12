@@ -117,7 +117,7 @@ export function Sidebar() {
 
       <div className="px-5 py-4 border-t border-chrome-line flex items-center justify-between">
         <span className="data text-[10px] uppercase tracking-widest text-chrome-fg-muted">
-          M5
+          v0.0.1
         </span>
         <ThemeToggle />
       </div>

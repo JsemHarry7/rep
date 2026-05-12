@@ -167,7 +167,7 @@ export function LandingPage() {
               <span className="italic text-accent">Připraven?</span>
             </h2>
             <p className="prose text-sm text-ink-dim">
-              Data zůstanou lokálně, dokud nezapneš cloud sync (M6).
+              Data zůstanou lokálně, dokud nezapneš cloud sync v Settings.
             </p>
           </div>
           <Button onClick={onStart} variant="primary" size="lg">

@@ -9,11 +9,11 @@ export function MobileTopBar() {
     <header
       className="
         md:hidden
+        fixed top-0 left-0 right-0 z-30
         bg-chrome border-b border-chrome-line
         px-5
         pt-[max(0.75rem,env(safe-area-inset-top))] pb-3
         flex items-center justify-between gap-3
-        shrink-0
       "
     >
       <button

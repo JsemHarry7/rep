@@ -23,10 +23,10 @@ export function MobileTabs() {
     <nav
       className="
         md:hidden
+        fixed bottom-0 left-0 right-0 z-30
         bg-chrome border-t border-chrome-line
         grid grid-cols-5
         pb-[env(safe-area-inset-bottom)]
-        shrink-0
       "
       aria-label="hlavní navigace"
     >

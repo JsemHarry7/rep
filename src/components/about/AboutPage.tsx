@@ -81,7 +81,7 @@ export function AboutPage() {
             <li>· Zustand (state)</li>
             <li>· wouter (routing)</li>
             <li>· vite-plugin-pwa</li>
-            <li>· Cloudflare Pages (M6)</li>
+            <li>· Cloudflare Pages + D1 (cloud sync)</li>
             <li>
               · Instrument Serif · Inter · JetBrains Mono
             </li>

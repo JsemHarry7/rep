@@ -1,11 +1,12 @@
 /* ---------- App store ----------
  *
  * Single Zustand store, persisted to localStorage. Holds:
- *  - reviews    history of every reveal/rate cycle (M2)
- *  - userDecks  decks user created via the Add UI (M5)
- *  - userCards  cards user added via Add UI / upload / LLM (M5)
- *  - srsState   per-card SRS state — ease/interval/due (M4)
- *  - user       streak + lastReview date (M4)
+ *  - reviews    history of every reveal/rate cycle
+ *  - userDecks  decks user created via the Add UI
+ *  - userCards  cards user added via Add UI / upload / AI helper
+ *  - srsState   per-card SRS state — ease/interval/due
+ *  - user       displayName, daily goal, streak, tour/landing-seen flags
+ *  - deadlines  user-configurable target dates
  *
  * Built-in decks/cards (in `content/`) are NOT persisted — they come
  * from the build-time content loader and are merged in App.

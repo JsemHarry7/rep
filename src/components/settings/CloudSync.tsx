@@ -177,9 +177,10 @@ function CloudSyncContent() {
           </p>
         )}
         <p className="prose text-xs text-ink-muted mt-4 max-w-prose">
-          Auto-sync není zapnutý — po editaci na jednom zařízení klikni{" "}
-          <span className="data">↑ Lokální → cloud</span>, na druhém{" "}
-          <span className="data">↓ Cloud → lokální</span>.
+          Auto-sync běží — edity se odešlou do cloudu pár sekund po
+          tom, co přestaneš psát. Tlačítka výš jsou pro případ, že
+          chceš push / pull vyforsovat ručně (typicky při řešení
+          konfliktu mezi zařízeními).
         </p>
       </div>
     );
