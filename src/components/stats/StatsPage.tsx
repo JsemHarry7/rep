@@ -62,13 +62,23 @@ export function StatsPage() {
   }, [reviews]);
   const dailyRate = last7Days / 7;
 
-  const ratingCounts = useMemo(() => {
+  // Current-state distribution: pro každou kartu vezmi POSLEDNÍ hodnocení.
+  // Tohle reflektuje "jak to umím teď", ne "kolik jsem nasekal again
+  // před měsícem". Kalibrace níž si pořád jede přes celou historii —
+  // to je záměr, jde o confidence v čase.
+  const currentRatingCounts = useMemo(() => {
+    const lastByCard = new Map<string, Rating>();
+    for (const r of reviews) lastByCard.set(r.cardId, r.rating);
     const c: Record<Rating, number> = { again: 0, hard: 0, good: 0, easy: 0 };
-    for (const r of reviews) c[r.rating]++;
-    return c;
+    for (const last of lastByCard.values()) c[last]++;
+    return { ...c, seen: lastByCard.size };
   }, [reviews]);
-  const accuracy = totalReviews
-    ? Math.round(((ratingCounts.good + ratingCounts.easy) / totalReviews) * 100)
+  const accuracy = currentRatingCounts.seen
+    ? Math.round(
+        ((currentRatingCounts.good + currentRatingCounts.easy) /
+          currentRatingCounts.seen) *
+          100,
+      )
     : 0;
 
   const deckRows = useMemo(() => {
@@ -205,10 +215,10 @@ export function StatsPage() {
             },
             {
               label: "accuracy",
-              value: totalReviews > 0 ? `${accuracy}%` : "—",
+              value: currentRatingCounts.seen > 0 ? `${accuracy}%` : "—",
               hint:
-                totalReviews > 0
-                  ? `${ratingCounts.good + ratingCounts.easy} z ${totalReviews}`
+                currentRatingCounts.seen > 0
+                  ? `${currentRatingCounts.good + currentRatingCounts.easy} z ${currentRatingCounts.seen} karet teď`
                   : "—",
             },
           ]}
