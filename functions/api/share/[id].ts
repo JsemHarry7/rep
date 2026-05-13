@@ -26,8 +26,13 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, params }) => {
     return errorResponse("Neplatné ID share linku.", 400, "invalid_id");
   }
 
+  // Don't query `kind` — we detect it from `deck_md` content. Collection
+  // bundles are JSON (start with `{` + have version/decks fields).
+  // Decks are markdown (start with `#` or `---`). This keeps the
+  // endpoint working pre-migration AND post-migration without
+  // depending on a column that might or might not exist.
   const row = await env.DB.prepare(
-    `SELECT id, title, card_count, deck_md, kind, created_at, views
+    `SELECT id, title, card_count, deck_md, created_at, views
      FROM shared_decks
      WHERE id = ?`,
   )
@@ -37,7 +42,6 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, params }) => {
       title: string;
       card_count: number;
       deck_md: string;
-      kind: string | null;
       created_at: number;
       views: number;
     }>();
@@ -61,8 +65,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, params }) => {
     /* swallow */
   }
 
-  // `kind` was added later — pre-migration rows can be NULL, treat as 'deck'.
-  const kind = (row.kind as "deck" | "collection") ?? "deck";
+  const kind = detectKind(row.deck_md);
   return jsonResponse({
     id: row.id,
     title: row.title,
@@ -77,6 +80,23 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, params }) => {
     views: row.views + 1,
   });
 };
+
+/** Discriminate deck markdown from collection bundle JSON by content
+ *  shape. Collection bundles are versioned JSON; deck shares are
+ *  markdown (either `#` headers or `---` frontmatter at the top). */
+function detectKind(payload: string): "deck" | "collection" {
+  const trimmed = payload.trimStart();
+  if (!trimmed.startsWith("{")) return "deck";
+  try {
+    const parsed = JSON.parse(trimmed) as { version?: number; decks?: unknown };
+    if (parsed && parsed.version === 1 && Array.isArray(parsed.decks)) {
+      return "collection";
+    }
+  } catch {
+    /* not JSON → deck */
+  }
+  return "deck";
+}
 
 export const onRequestDelete: PagesFunction<Env> = async ({
   request,

@@ -86,29 +86,19 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   for (let attempt = 0; attempt < 3 && !inserted; attempt++) {
     id = generateShareId();
     try {
-      // Deck shares (the common path) DON'T include `kind` in the
-      // INSERT — if the column exists, the DB default ('deck') kicks
-      // in; if it doesn't (pre-migration deploy), the INSERT still
-      // succeeds. Only collection shares require the column, since
-      // they need the non-default value 'collection'.
-      if (kind === "deck") {
-        await env.DB.prepare(
-          `INSERT INTO shared_decks (id, owner_id, title, card_count, deck_md, created_at)
-           VALUES (?, ?, ?, ?, ?, ?)`,
-        )
-          .bind(id, session.sub, title.slice(0, 200), cardCount, payload, now)
-          .run();
-      } else {
-        // Collection share: requires the `kind` column. If schema is
-        // pre-migration, this fails with a clear SQL error that the
-        // caller surfaces.
-        await env.DB.prepare(
-          `INSERT INTO shared_decks (id, owner_id, title, card_count, deck_md, kind, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        )
-          .bind(id, session.sub, title.slice(0, 200), cardCount, payload, kind, now)
-          .run();
-      }
+      // INSERT never references the `kind` column. Pre-migration deploys
+      // don't have it; post-migration deploys have it with default
+      // 'deck'. Either way we don't need it on write — we sniff the
+      // kind from `deck_md` content at read time (collection bundles
+      // are JSON, deck markdown isn't). Trade-off: we lose a tiny bit
+      // of write-side clarity, but we never depend on a migration
+      // having been run.
+      await env.DB.prepare(
+        `INSERT INTO shared_decks (id, owner_id, title, card_count, deck_md, created_at)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+      )
+        .bind(id, session.sub, title.slice(0, 200), cardCount, payload, now)
+        .run();
       inserted = true;
     } catch (e) {
       // SQLITE_CONSTRAINT on PK collision → retry with a fresh id.
@@ -135,8 +125,13 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const session = await requireSession(request, env);
   if (session instanceof Response) return session;
 
+  // Don't reference `kind` column (might not exist pre-migration).
+  // Instead we fetch a single-char prefix of deck_md and detect kind
+  // from it: collection bundles are JSON (start with `{`), deck shares
+  // are markdown frontmatter or `#` headers.
   const result = await env.DB.prepare(
-    `SELECT id, title, card_count, kind, created_at, views
+    `SELECT id, title, card_count, created_at, views,
+            substr(deck_md, 1, 1) AS payload_prefix
      FROM shared_decks
      WHERE owner_id = ?
      ORDER BY created_at DESC`,
@@ -146,9 +141,9 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
       id: string;
       title: string;
       card_count: number;
-      kind: string;
       created_at: number;
       views: number;
+      payload_prefix: string | null;
     }>();
 
   return jsonResponse({
@@ -156,7 +151,9 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
       id: r.id,
       title: r.title,
       cardCount: r.card_count,
-      kind: (r.kind as "deck" | "collection") ?? "deck",
+      kind: (r.payload_prefix === "{" ? "collection" : "deck") as
+        | "deck"
+        | "collection",
       createdAt: r.created_at,
       views: r.views,
     })),
