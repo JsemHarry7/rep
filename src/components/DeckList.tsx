@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { useAppStore } from "@/lib/store";
 import { collectionSize, resolveCollection } from "@/lib/collections";
 import { CollectionDialog } from "@/components/decks/CollectionDialog";
+import { ShareCollectionDialog } from "@/components/decks/ShareCollectionDialog";
 
 interface DeckListProps {
   decks: Deck[];
@@ -18,9 +19,10 @@ export function DeckList({ decks, cards, onSelectDeck }: DeckListProps) {
 
   // null = "Všechny" filter (show every deck). Otherwise: filter by id.
   const [activeId, setActiveId] = useState<string | null>(null);
-  // editing === null && creating === false → dialog closed
+  // Three dialog states: create new, edit existing, share existing.
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Collection | null>(null);
+  const [sharing, setSharing] = useState<Collection | null>(null);
 
   const filteredDecks = useMemo(() => {
     if (!activeId) return decks;
@@ -80,52 +82,15 @@ export function DeckList({ decks, cards, onSelectDeck }: DeckListProps) {
       <header className="mb-6 flex items-baseline justify-between gap-3 flex-wrap">
         <div>
           <h1 className="display text-5xl sm:text-6xl mb-3">Decks.</h1>
-          <p className="data text-xs text-ink-dim uppercase tracking-widest flex items-center gap-2 flex-wrap">
-            <span>
-              {filteredDecks.length}{" "}
-              {plural(filteredDecks.length, "deck", "decky", "decků")} ·{" "}
-              {visibleCards.length}{" "}
-              {plural(visibleCards.length, "karta", "karty", "karet")}
-            </span>
+          <p className="data text-xs text-ink-dim uppercase tracking-widest">
+            {filteredDecks.length}{" "}
+            {plural(filteredDecks.length, "deck", "decky", "decků")} ·{" "}
+            {visibleCards.length}{" "}
+            {plural(visibleCards.length, "karta", "karty", "karet")}
             {activeCollection && (
               <>
-                <span className="text-ink-muted">·</span>
+                {" · "}
                 <span className="text-accent">{activeCollection.title}</span>
-                <button
-                  onClick={() =>
-                    navigate(
-                      `/review/c/${encodeURIComponent(activeCollection.id)}/srs`,
-                    )
-                  }
-                  disabled={filteredDecks.length === 0}
-                  className="
-                    data text-[11px] uppercase tracking-widest
-                    text-navy hover:bg-navy hover:text-navy-fg
-                    transition-colors
-                    min-h-[36px] px-2.5 -mx-1
-                    border border-navy rounded-sm
-                    normal-case tracking-normal
-                    disabled:opacity-40 disabled:cursor-not-allowed
-                    disabled:hover:bg-transparent disabled:hover:text-navy
-                  "
-                  aria-label={`procvičovat kolekci ${activeCollection.title}`}
-                >
-                  ▶ procvičovat
-                </button>
-                <button
-                  onClick={() => setEditing(activeCollection)}
-                  className="
-                    data text-[11px] uppercase tracking-widest
-                    text-ink-muted hover:text-ink transition-colors
-                    min-h-[36px] px-2 -mx-1
-                    border border-line rounded-sm
-                    hover:border-line-strong
-                    normal-case tracking-normal
-                  "
-                  aria-label={`upravit kolekci ${activeCollection.title}`}
-                >
-                  ✎ upravit
-                </button>
               </>
             )}
           </p>
@@ -142,6 +107,18 @@ export function DeckList({ decks, cards, onSelectDeck }: DeckListProps) {
         onPick={setActiveId}
         onNew={() => setCreating(true)}
       />
+
+      {activeCollection && (
+        <CollectionActions
+          collection={activeCollection}
+          deckCount={filteredDecks.length}
+          onReview={() =>
+            navigate(`/review/c/${encodeURIComponent(activeCollection.id)}/srs`)
+          }
+          onShare={() => setSharing(activeCollection)}
+          onEdit={() => setEditing(activeCollection)}
+        />
+      )}
 
       <ul className="divide-y divide-line">
         {filteredDecks.map((d) => {
@@ -216,6 +193,77 @@ export function DeckList({ decks, cards, onSelectDeck }: DeckListProps) {
         editing={editing}
         allDecks={decks}
       />
+
+      <ShareCollectionDialog
+        open={sharing !== null}
+        onClose={() => setSharing(null)}
+        collection={sharing}
+        allDecks={decks}
+      />
+    </div>
+  );
+}
+
+/* ---------- Per-collection action row ----------
+ *
+ * Shown below the chip row when a collection is active. Three actions —
+ * procvičovat (primary blue), sdílet (accent terracotta), upravit
+ * (neutral). All three use the same chip-shaped button style so they
+ * read as a coherent group, just colour-coded by intent. Lives on its
+ * own row instead of inline in the meta line so they get breathing
+ * room and don't squish on mobile. */
+function CollectionActions({
+  collection,
+  deckCount,
+  onReview,
+  onShare,
+  onEdit,
+}: {
+  collection: Collection;
+  deckCount: number;
+  onReview: () => void;
+  onShare: () => void;
+  onEdit: () => void;
+}) {
+  void collection; // future: per-collection action variants
+  const baseClass =
+    "data text-[11px] uppercase tracking-widest px-3 py-1.5 min-h-[36px] hairline rounded-sm whitespace-nowrap transition-colors";
+  return (
+    <div className="mb-6 -mx-2 px-2 overflow-x-auto">
+      <div className="flex items-center gap-1.5 min-w-max">
+        <button
+          onClick={onReview}
+          disabled={deckCount === 0}
+          className={`
+            ${baseClass}
+            border-navy text-navy
+            hover:bg-navy hover:text-navy-fg
+            disabled:opacity-40 disabled:cursor-not-allowed
+            disabled:hover:bg-transparent disabled:hover:text-navy
+          `}
+        >
+          ▶ procvičovat
+        </button>
+        <button
+          onClick={onShare}
+          className={`
+            ${baseClass}
+            border-accent text-accent
+            hover:bg-accent hover:text-accent-fg
+          `}
+        >
+          ↗ sdílet
+        </button>
+        <button
+          onClick={onEdit}
+          className={`
+            ${baseClass}
+            text-ink-dim hover:border-line-strong hover:text-ink
+          `}
+        >
+          ✎ upravit
+        </button>
+      </div>
     </div>
   );
 }
