@@ -92,6 +92,27 @@ export function DeckList({ decks, cards, onSelectDeck }: DeckListProps) {
                 <span className="text-ink-muted">·</span>
                 <span className="text-accent">{activeCollection.title}</span>
                 <button
+                  onClick={() =>
+                    navigate(
+                      `/review/c/${encodeURIComponent(activeCollection.id)}/srs`,
+                    )
+                  }
+                  disabled={filteredDecks.length === 0}
+                  className="
+                    data text-[11px] uppercase tracking-widest
+                    text-navy hover:bg-navy hover:text-navy-fg
+                    transition-colors
+                    min-h-[36px] px-2.5 -mx-1
+                    border border-navy rounded-sm
+                    normal-case tracking-normal
+                    disabled:opacity-40 disabled:cursor-not-allowed
+                    disabled:hover:bg-transparent disabled:hover:text-navy
+                  "
+                  aria-label={`procvičovat kolekci ${activeCollection.title}`}
+                >
+                  ▶ procvičovat
+                </button>
+                <button
                   onClick={() => setEditing(activeCollection)}
                   className="
                     data text-[11px] uppercase tracking-widest

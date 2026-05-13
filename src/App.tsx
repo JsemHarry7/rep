@@ -8,6 +8,7 @@ import { useCombinedContent } from "@/lib/data";
 import { useAppStore } from "@/lib/store";
 import { useCloudAuth } from "@/lib/cloudAuth";
 import { startAutoSync } from "@/lib/autoSync";
+import { resolveCollection } from "@/lib/collections";
 import type { ReviewMode } from "@/types";
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
@@ -166,6 +167,14 @@ function AppShell() {
                   />
                 )}
               </Route>
+              <Route path="/review/c/:colId/:mode">
+                {(params) => (
+                  <CollectionReviewRoute
+                    colId={params.colId!}
+                    mode={params.mode as ReviewMode}
+                  />
+                )}
+              </Route>
               <Route path="/mock">
                 <MockRoute />
               </Route>
@@ -278,6 +287,82 @@ function ReviewRoute({ deckId, mode }: { deckId: string; mode: ReviewMode }) {
       cards={deckCards}
       mode={mode}
       onExit={() => navigate(`/decks/${encodeURIComponent(deck.id)}`)}
+    />
+  );
+}
+
+function CollectionReviewRoute({
+  colId,
+  mode,
+}: {
+  colId: string;
+  mode: ReviewMode;
+}) {
+  const [, navigate] = useLocation();
+  const { decks, cards } = useCombinedContent();
+  const collections = useAppStore((s) => s.collections);
+
+  const decodedId = decodeURIComponent(colId);
+  const collection = collections.find((c) => c.id === decodedId);
+
+  useEffect(() => {
+    if (!collection) navigate("/decks", { replace: true });
+  }, [collection, navigate]);
+
+  if (!collection) return null;
+
+  const memberDecks = resolveCollection(collection, decks);
+  const deckIds = new Set(memberDecks.map((d) => d.id));
+  const collectionCards = cards.filter((c) => deckIds.has(c.deckId));
+
+  // Build a virtual deck for the review screen — wraps the entire
+  // collection so the existing review flow works unchanged.
+  const virtualDeck = {
+    id: `_col_${collection.id}`,
+    title: collection.title,
+    description:
+      collection.description ??
+      `${memberDecks.length} decků v kolekci`,
+    tags: collection.kind === "tag" ? [collection.tag] : [],
+    source: "builtin" as const,
+    createdAt: collection.createdAt,
+    updatedAt: collection.updatedAt,
+  };
+
+  if (collectionCards.length === 0) {
+    return (
+      <div className="px-6 sm:px-10 lg:px-16 py-14 sm:py-20 max-w-3xl mx-auto">
+        <div className="data text-[10px] uppercase tracking-widest text-ink-muted mb-4">
+          kolekce · prázdná
+        </div>
+        <h1 className="display text-5xl sm:text-6xl mb-4">
+          <span className="italic">{collection.title}</span> nemá karty.
+        </h1>
+        <p className="prose text-base text-ink-dim mb-8">
+          Žádný z decků v kolekci zatím nemá karty. Přidej nějaké a vrať se
+          sem.
+        </p>
+        <button
+          onClick={() => navigate("/decks")}
+          className="
+            inline-flex items-center gap-2
+            border border-navy bg-transparent text-navy
+            px-5 py-2 rounded-sm font-sans text-sm font-medium
+            hover:bg-navy hover:text-navy-fg transition-colors
+          "
+        >
+          ← Zpět na decks
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <ReviewScreen
+      deck={virtualDeck}
+      cards={collectionCards}
+      mode={mode}
+      onExit={() => navigate("/decks")}
     />
   );
 }

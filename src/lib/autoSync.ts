@@ -166,11 +166,33 @@ async function initialSync(): Promise<void> {
   if (auth.status !== "signed-in") return;
   if (typeof navigator !== "undefined" && !navigator.onLine) return;
 
+  // Fresh-device override: if local has zero cards AND cloud has
+  // anything at all, pull unconditionally — this is the
+  // "I just signed in on a new phone" case. We were previously
+  // gating on isDirty(), but the dirty flag can get falsely set by
+  // routine startup actions (onboarding name prompt, theme toggle,
+  // first store hydration). Trusting cardCount=0 is far more
+  // reliable as the "fresh device" signal.
+  const localCards = useAppStore.getState().userCards.length;
+  if (localCards === 0) {
+    const meta = await fetchCloudMeta();
+    if (meta && meta.cardCount > 0) {
+      setPhase("syncing");
+      const r = await pullFromCloud();
+      if (r.ok) {
+        markClean();
+        setPhase("idle", { lastSyncedAt: r.updatedAt ?? Date.now(), lastError: null });
+      } else {
+        setPhase("error", { lastError: r.message ?? "Pull selhal." });
+      }
+      return;
+    }
+  }
+
   if (isDirty()) {
-    // Local has unpushed edits. Push them first — don't let an
-    // auto-pull silently overwrite work the user did before signing
-    // in (or while another device was offline). The user can still
-    // manually pull from Settings if they want the cloud version.
+    // Local has unpushed edits AND local is non-empty. Push first —
+    // the lossy-push guard inside doPush() still catches accidental
+    // wipes.
     await doPush();
     return;
   }

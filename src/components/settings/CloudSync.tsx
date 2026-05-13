@@ -223,28 +223,12 @@ function CloudSyncContent() {
           )}
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
-          <Button
-            onClick={handlePush}
-            disabled={busy !== null}
-            variant={
-              cloudMeta && cloudMeta.cardCount > localCardCount
-                ? "secondary"
-                : "primary"
-            }
-            size="sm"
-          >
-            {busy === "push" ? "Nahrávám…" : "↑ Lokální → cloud"}
-          </Button>
-          <Button
-            onClick={handlePull}
-            disabled={busy !== null}
-            variant="secondary"
-            size="sm"
-          >
-            {busy === "pull" ? "Stahuji…" : "↓ Cloud → lokální"}
-          </Button>
-        </div>
+        <p className="prose text-xs text-ink-muted max-w-prose">
+          Auto-sync běží — edity se odešlou do cloudu pár sekund po tom,
+          co přestaneš psát. Pull se spustí automaticky když otevřeš app
+          na čerstvém zařízení. Nic ručně dělat nemusíš.
+        </p>
+
         {syncStatus && (
           <p
             className={`mt-3 data text-xs ${syncStatus.ok ? "text-ok" : "text-bad"}`}
@@ -252,12 +236,46 @@ function CloudSyncContent() {
             {syncStatus.text}
           </p>
         )}
-        <p className="prose text-xs text-ink-muted mt-4 max-w-prose">
-          Auto-sync běží — edity se odešlou do cloudu pár sekund po
-          tom, co přestaneš psát. Tlačítka výš jsou pro případ, že
-          chceš push / pull vyforsovat ručně (typicky při řešení
-          konfliktu mezi zařízeními).
-        </p>
+
+        {/* Manual push/pull is destructive territory — collapsed by
+            default so běžný uživatel nezavadí. Open only when user
+            actively wants to force-overwrite a side. */}
+        <details className="mt-5 group">
+          <summary className="cursor-pointer data text-[10px] uppercase tracking-widest text-ink-muted hover:text-ink transition-colors py-2 select-none">
+            ▸ pokročilé · ruční sync
+          </summary>
+          <div className="mt-3 pl-3 border-l border-line space-y-3">
+            <p className="prose text-xs text-ink-dim max-w-prose">
+              Tyhle tlačítka přepisují jednu stranu druhou —{" "}
+              <span className="text-bad">jsou destruktivní</span>. Použij
+              jen když víš co děláš (typicky řešení konfliktu mezi
+              zařízeními). Auto-sync běžně stačí.
+            </p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button
+                onClick={handlePush}
+                disabled={busy !== null}
+                variant="secondary"
+                size="sm"
+              >
+                {busy === "push" ? "Nahrávám…" : "↑ Přepsat cloud lokálem"}
+              </Button>
+              <Button
+                onClick={handlePull}
+                disabled={busy !== null}
+                variant="secondary"
+                size="sm"
+              >
+                {busy === "pull" ? "Stahuji…" : "↓ Přepsat lokál cloudem"}
+              </Button>
+            </div>
+            <p className="prose text-[10px] text-ink-muted">
+              Když uděláš chybu, podívej se do{" "}
+              <span className="data">Cloud zálohy</span> niže — drží
+              posledních 5 stavů cloudu, snadno se vrátí.
+            </p>
+          </div>
+        </details>
       </div>
     );
   }

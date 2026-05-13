@@ -86,12 +86,29 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   for (let attempt = 0; attempt < 3 && !inserted; attempt++) {
     id = generateShareId();
     try {
-      await env.DB.prepare(
-        `INSERT INTO shared_decks (id, owner_id, title, card_count, deck_md, kind, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      )
-        .bind(id, session.sub, title.slice(0, 200), cardCount, payload, kind, now)
-        .run();
+      // Deck shares (the common path) DON'T include `kind` in the
+      // INSERT — if the column exists, the DB default ('deck') kicks
+      // in; if it doesn't (pre-migration deploy), the INSERT still
+      // succeeds. Only collection shares require the column, since
+      // they need the non-default value 'collection'.
+      if (kind === "deck") {
+        await env.DB.prepare(
+          `INSERT INTO shared_decks (id, owner_id, title, card_count, deck_md, created_at)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+        )
+          .bind(id, session.sub, title.slice(0, 200), cardCount, payload, now)
+          .run();
+      } else {
+        // Collection share: requires the `kind` column. If schema is
+        // pre-migration, this fails with a clear SQL error that the
+        // caller surfaces.
+        await env.DB.prepare(
+          `INSERT INTO shared_decks (id, owner_id, title, card_count, deck_md, kind, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        )
+          .bind(id, session.sub, title.slice(0, 200), cardCount, payload, kind, now)
+          .run();
+      }
       inserted = true;
     } catch (e) {
       // SQLITE_CONSTRAINT on PK collision → retry with a fresh id.
