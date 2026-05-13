@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { autoParseDeck } from "@/lib/parser";
 import { useAppStore } from "@/lib/store";
 import { CardPreview } from "./CardPreview";
@@ -73,7 +73,18 @@ export function UploadTab() {
     setSaved({ count: keep.length, deckTitle });
     setSource("");
     setSkipped(new Set());
+    setTarget(defaultDeckTarget(userDecks));
   };
+
+  // Auto-fill new-deck title from parsed frontmatter, only if user
+  // hasn't typed anything yet. Same heuristic as AITab.
+  useEffect(() => {
+    const metaTitle = parsed?.meta.title?.trim();
+    if (!metaTitle) return;
+    if (target.kind !== "new") return;
+    if (target.title.trim() !== "") return;
+    setTarget({ kind: "new", title: metaTitle });
+  }, [parsed?.meta.title, target]);
 
   if (saved) {
     return <SaveResult result={saved} onContinue={() => setSaved(null)} />;

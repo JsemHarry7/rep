@@ -80,16 +80,31 @@ export function DeckList({ decks, cards, onSelectDeck }: DeckListProps) {
       <header className="mb-6 flex items-baseline justify-between gap-3 flex-wrap">
         <div>
           <h1 className="display text-5xl sm:text-6xl mb-3">Decks.</h1>
-          <p className="data text-xs text-ink-dim uppercase tracking-widest">
-            {filteredDecks.length}{" "}
-            {plural(filteredDecks.length, "deck", "decky", "decků")} ·{" "}
-            {visibleCards.length}{" "}
-            {plural(visibleCards.length, "karta", "karty", "karet")}
+          <p className="data text-xs text-ink-dim uppercase tracking-widest flex items-center gap-2 flex-wrap">
+            <span>
+              {filteredDecks.length}{" "}
+              {plural(filteredDecks.length, "deck", "decky", "decků")} ·{" "}
+              {visibleCards.length}{" "}
+              {plural(visibleCards.length, "karta", "karty", "karet")}
+            </span>
             {activeCollection && (
               <>
-                {" "}
-                <span className="text-ink-muted">·</span>{" "}
+                <span className="text-ink-muted">·</span>
                 <span className="text-accent">{activeCollection.title}</span>
+                <button
+                  onClick={() => setEditing(activeCollection)}
+                  className="
+                    data text-[11px] uppercase tracking-widest
+                    text-ink-muted hover:text-ink transition-colors
+                    min-h-[36px] px-2 -mx-1
+                    border border-line rounded-sm
+                    hover:border-line-strong
+                    normal-case tracking-normal
+                  "
+                  aria-label={`upravit kolekci ${activeCollection.title}`}
+                >
+                  ✎ upravit
+                </button>
               </>
             )}
           </p>
@@ -105,7 +120,6 @@ export function DeckList({ decks, cards, onSelectDeck }: DeckListProps) {
         activeId={activeId}
         onPick={setActiveId}
         onNew={() => setCreating(true)}
-        onEdit={(c) => setEditing(c)}
       />
 
       <ul className="divide-y divide-line">
@@ -191,14 +205,12 @@ function CollectionChips({
   activeId,
   onPick,
   onNew,
-  onEdit,
 }: {
   collections: Collection[];
   allDecks: Deck[];
   activeId: string | null;
   onPick: (id: string | null) => void;
   onNew: () => void;
-  onEdit: (c: Collection) => void;
 }) {
   return (
     <div className="mb-6 -mx-2 px-2 overflow-x-auto">
@@ -209,29 +221,19 @@ function CollectionChips({
         {collections.map((c) => {
           const size = collectionSize(c, allDecks);
           const active = activeId === c.id;
+          // Count + # marker contrast: when active, the chip background
+          // is bg-navy (dark in both modes), so a muted gray count is
+          // unreadable. Use translucent navy-fg instead. When inactive,
+          // chip is transparent on surface — ink-muted works there.
+          const muteOnChip = active ? "text-navy-fg/60" : "text-ink-muted";
           return (
-            <div key={c.id} className="flex items-center gap-1">
-              <Chip active={active} onClick={() => onPick(c.id)}>
-                <span>{c.title}</span>
-                <span className="text-ink-muted ml-1.5 tabular-nums">{size}</span>
-                {c.kind === "tag" && (
-                  <span className="text-ink-muted ml-1.5">#</span>
-                )}
-              </Chip>
-              {active && (
-                <button
-                  onClick={() => onEdit(c)}
-                  className="
-                    data text-[11px] uppercase tracking-widest
-                    text-ink-muted hover:text-ink transition-colors
-                    px-2 py-1 min-h-[36px]
-                  "
-                  aria-label={`upravit kolekci ${c.title}`}
-                >
-                  ⋯
-                </button>
+            <Chip key={c.id} active={active} onClick={() => onPick(c.id)}>
+              <span>{c.title}</span>
+              <span className={`ml-1.5 tabular-nums ${muteOnChip}`}>{size}</span>
+              {c.kind === "tag" && (
+                <span className={`ml-1.5 ${muteOnChip}`}>#</span>
               )}
-            </div>
+            </Chip>
           );
         })}
         <button

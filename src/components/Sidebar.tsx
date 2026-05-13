@@ -1,18 +1,63 @@
+import { useMemo, useState } from "react";
 import { useLocation } from "wouter";
-import type { Deck } from "@/types";
+import type { Collection, Deck } from "@/types";
 import { pathToView } from "@/App";
 import { useCombinedContent } from "@/lib/data";
+import { useAppStore } from "@/lib/store";
+import { resolveCollection } from "@/lib/collections";
 import { ThemeToggle } from "./ThemeToggle";
 import { VersionStamp } from "./VersionStamp";
 
 export function Sidebar() {
   const [location, navigate] = useLocation();
   const { decks } = useCombinedContent();
+  const collections = useAppStore((s) => s.collections);
   const activeView = pathToView(location);
 
   // For deck list highlighting: parse deckId from path if present.
   const deckMatch = location.match(/^\/decks\/(.+?)(\/|$)/);
   const activeDeckId = deckMatch ? decodeURIComponent(deckMatch[1]) : null;
+
+  // Group decks by collection membership for the sidebar tree. Decks
+  // not in any collection live under an "ostatní" bucket so they
+  // remain reachable; this prevents the flat-list sprawl complaint
+  // ("v levem navbaru ... zacina byt slozity, kdyz tam je tech decks
+  // tolik"). Each collection becomes a collapsible disclosure group.
+  const groups = useMemo(() => {
+    const membership = new Map<string, Collection[]>(); // deckId → list of colls it belongs to
+    for (const c of collections) {
+      const members = resolveCollection(c, decks);
+      for (const d of members) {
+        const arr = membership.get(d.id) ?? [];
+        arr.push(c);
+        membership.set(d.id, arr);
+      }
+    }
+    const grouped: { coll: Collection | null; decks: Deck[] }[] = [];
+    for (const c of collections) {
+      const members = resolveCollection(c, decks);
+      if (members.length > 0) grouped.push({ coll: c, decks: members });
+    }
+    const ungrouped = decks.filter((d) => !membership.has(d.id));
+    if (ungrouped.length > 0 || collections.length === 0) {
+      grouped.push({ coll: null, decks: ungrouped });
+    }
+    return grouped;
+  }, [decks, collections]);
+
+  // Persist open/closed state in memory per session. Default: all open
+  // if ≤ 3 collections, otherwise all collapsed (overwhelm protection).
+  const [collapsed, setCollapsed] = useState<Set<string>>(() =>
+    collections.length > 3 ? new Set(collections.map((c) => c.id)) : new Set(),
+  );
+  const toggle = (key: string) => {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
 
   return (
     <aside
@@ -79,40 +124,87 @@ export function Sidebar() {
               žádné decky
             </li>
           )}
-          {decks.map((d: Deck) => (
-            <li key={d.id}>
-              <button
-                onClick={() => navigate(`/decks/${encodeURIComponent(d.id)}`)}
-                className={`
-                  w-full text-left
-                  px-5 py-1.5
-                  flex items-baseline gap-2
-                  transition-colors
-                  ${
-                    activeDeckId === d.id
-                      ? "text-chrome-fg"
-                      : "text-chrome-fg-dim hover:text-chrome-fg"
-                  }
-                `}
-              >
-                <span
-                  aria-hidden
-                  className={`
-                    data text-[10px] w-2 shrink-0
-                    ${activeDeckId === d.id ? "text-chrome-fg" : "text-chrome-fg-muted"}
-                  `}
-                >
-                  {activeDeckId === d.id ? "›" : "·"}
-                </span>
-                <span className="data text-sm truncate">{d.title}</span>
-                {d.source === "local" && (
-                  <span className="ml-auto data text-[9px] uppercase tracking-widest text-chrome-fg-muted">
-                    local
-                  </span>
+
+          {groups.map(({ coll, decks: groupDecks }) => {
+            const key = coll?.id ?? "_ungrouped";
+            const isCollapsed = collapsed.has(key);
+            // If there's a single ungrouped bucket and no collections,
+            // skip the disclosure header — render flat as before.
+            const showHeader = coll !== null || groups.length > 1;
+            return (
+              <li key={key} className="mb-1">
+                {showHeader && (
+                  <button
+                    onClick={() => toggle(key)}
+                    className="
+                      w-full text-left px-5 py-1
+                      flex items-center gap-2
+                      data text-[10px] uppercase tracking-widest
+                      text-chrome-fg-muted hover:text-chrome-fg
+                      transition-colors
+                    "
+                    aria-expanded={!isCollapsed}
+                  >
+                    <span
+                      aria-hidden
+                      className="w-2 shrink-0 tabular-nums"
+                    >
+                      {isCollapsed ? "▸" : "▾"}
+                    </span>
+                    <span className="truncate">
+                      {coll === null
+                        ? "ostatní"
+                        : coll.title}
+                    </span>
+                    <span className="ml-auto tabular-nums opacity-60">
+                      {groupDecks.length}
+                    </span>
+                    {coll?.kind === "tag" && (
+                      <span aria-hidden className="opacity-60">#</span>
+                    )}
+                  </button>
                 )}
-              </button>
-            </li>
-          ))}
+                {!isCollapsed && (
+                  <ul>
+                    {groupDecks.map((d) => (
+                      <li key={d.id}>
+                        <button
+                          onClick={() => navigate(`/decks/${encodeURIComponent(d.id)}`)}
+                          className={`
+                            w-full text-left
+                            ${showHeader ? "pl-9 pr-5" : "px-5"} py-1.5
+                            flex items-baseline gap-2
+                            transition-colors
+                            ${
+                              activeDeckId === d.id
+                                ? "text-chrome-fg"
+                                : "text-chrome-fg-dim hover:text-chrome-fg"
+                            }
+                          `}
+                        >
+                          <span
+                            aria-hidden
+                            className={`
+                              data text-[10px] w-2 shrink-0
+                              ${activeDeckId === d.id ? "text-chrome-fg" : "text-chrome-fg-muted"}
+                            `}
+                          >
+                            {activeDeckId === d.id ? "›" : "·"}
+                          </span>
+                          <span className="data text-sm truncate">{d.title}</span>
+                          {d.source === "local" && (
+                            <span className="ml-auto data text-[9px] uppercase tracking-widest text-chrome-fg-muted">
+                              local
+                            </span>
+                          )}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </li>
+            );
+          })}
         </SidebarSection>
       </nav>
 

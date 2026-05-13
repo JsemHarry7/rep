@@ -124,14 +124,17 @@ export function StatsPage() {
             </StatsChip>
             {collections.map((c) => {
               const size = collectionSize(c, universeDecks);
+              const active = activeCollectionId === c.id;
               return (
                 <StatsChip
                   key={c.id}
-                  active={activeCollectionId === c.id}
+                  active={active}
                   onClick={() => setActiveCollectionId(c.id)}
                 >
                   {c.title}
-                  <span className="text-ink-muted ml-1.5 tabular-nums">
+                  <span
+                    className={`ml-1.5 tabular-nums ${active ? "text-navy-fg/60" : "text-ink-muted"}`}
+                  >
                     {size}
                   </span>
                 </StatsChip>

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { parseDeckMarkdown } from "@/lib/parser";
 import { useAppStore } from "@/lib/store";
 import { presets, type Preset } from "./prompts";
@@ -50,6 +50,17 @@ export function AITab() {
     return /^\s*(Q|CLOZE|MCQ|FREE|CODE)\s*:\s*\S/im.test(txt);
   }, [response]);
 
+  // Auto-fill deck title from parsed frontmatter when LLM produces
+  // markdown like `title: Romeo a Julie`. Only kicks in for "new"
+  // target with empty title — never overwrites what the user typed.
+  useEffect(() => {
+    const metaTitle = parsed?.meta.title?.trim();
+    if (!metaTitle) return;
+    if (target.kind !== "new") return;
+    if (target.title.trim() !== "") return;
+    setTarget({ kind: "new", title: metaTitle });
+  }, [parsed?.meta.title, target]);
+
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(prompt);
@@ -87,6 +98,9 @@ export function AITab() {
     setSource("");
     setResponse("");
     setSkipped(new Set());
+    // Reset target so a stale "new deck" title from this round doesn't
+    // sit in the input when the user comes back to add more cards.
+    setTarget(defaultDeckTarget(userDecks));
     setStep("source");
   };
 
