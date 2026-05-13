@@ -5,8 +5,9 @@ import {
   serializeDeck,
   SHARE_URL_SOFT_LIMIT,
 } from "@/lib/deckExport";
-import { createShare } from "@/lib/shareApi";
+import { createShare, fetchShare, revokeShare } from "@/lib/shareApi";
 import { useCloudAuth } from "@/lib/cloudAuth";
+import { useAppStore } from "@/lib/store";
 import type { Card, Deck } from "@/types";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
@@ -67,25 +68,75 @@ function ShareContent({
   const link = useMemo(() => buildShareUrl(deck, cards), [deck, cards]);
   const linkOk = link.length <= SHARE_URL_SOFT_LIMIT;
 
-  /* ---- Short-link (cloud) state ---- */
+  /* ---- Short-link (cloud) state ----
+   * Permanent per deck: we stash the shareId in the store keyed by
+   * "deck:<id>", verify it still exists on open, and let the user
+   * "regenerate" if they really want a fresh URL. Otherwise repeated
+   * "Sdílet → Krátký link" yields the SAME link, not a new D1 row
+   * every time. */
+  const sourceKey = `deck:${deck.id}`;
+  const knownShareId = useAppStore((s) => s.shareLinks[sourceKey]);
+  const setShareLinkStore = useAppStore((s) => s.setShareLink);
+  const clearShareLinkStore = useAppStore((s) => s.clearShareLink);
   const [shortLink, setShortLink] = useState<string | null>(null);
   const [shortBusy, setShortBusy] = useState(false);
   const [shortError, setShortError] = useState<string | null>(null);
 
-  // Reset short-link state whenever the deck/cards change — stale ID
-  // would point at the previous snapshot.
+  // Hydrate from stored share id; verify on server in the background
+  // and clear local mapping on confirmed 404.
   useEffect(() => {
-    setShortLink(null);
     setShortError(null);
-  }, [md]);
+    if (!knownShareId) {
+      setShortLink(null);
+      return;
+    }
+    setShortLink(`${window.location.origin}/s/${knownShareId}`);
+    let cancelled = false;
+    void (async () => {
+      const r = await fetchShare(knownShareId);
+      if (cancelled) return;
+      if (!r.ok && r.code === "not_found") {
+        clearShareLinkStore(sourceKey);
+        setShortLink(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [knownShareId, sourceKey, clearShareLinkStore]);
 
   const handleCreateShort = async () => {
     setShortBusy(true);
     setShortError(null);
     const r = await createShare(deck, cards);
     setShortBusy(false);
-    if (r.ok) setShortLink(r.data.url);
-    else setShortError(r.message);
+    if (r.ok) {
+      setShortLink(r.data.url);
+      setShareLinkStore(sourceKey, r.data.id);
+    } else {
+      setShortError(r.message);
+    }
+  };
+
+  const handleRecreateShort = async () => {
+    if (!knownShareId) {
+      void handleCreateShort();
+      return;
+    }
+    if (
+      !confirm(
+        "Zrušit současný link a vytvořit nový?\n\nStarý odkaz přestane fungovat. Komu už ho někdo otevřel a importoval, ten má kopii lokálně.",
+      )
+    ) {
+      return;
+    }
+    setShortBusy(true);
+    setShortError(null);
+    await revokeShare(knownShareId);
+    clearShareLinkStore(sourceKey);
+    setShortLink(null);
+    setShortBusy(false);
+    void handleCreateShort();
   };
 
   const copy = async (text: string, label: string) => {
@@ -137,9 +188,19 @@ function ShareContent({
       {tab === "short" && (
         <div>
           <p className="prose text-sm text-ink-dim mb-3 max-w-prose">
-            Krátký <span className="data">/s/abc12345</span> link. Otevře
-            ho kdokoliv (i bez účtu), data si přitáhne ze serveru. Můžeš
-            ho kdykoliv odebrat v Settings → Sdílené decky.
+            {shortLink ? (
+              <>
+                Tenhle deck má permanentní krátký link. Pošli ho komukoli
+                — otevře ho i bez účtu. Odebrání jen v{" "}
+                <span className="data">Settings → Sdílené decky</span>.
+              </>
+            ) : (
+              <>
+                Krátký <span className="data">/s/abc12345</span> link.
+                Otevře ho kdokoliv (i bez účtu), data si přitáhne ze
+                serveru. Po vytvoření zůstane spojený s tímhle deckem.
+              </>
+            )}
           </p>
           {shortLink ? (
             <>
@@ -158,9 +219,17 @@ function ShareContent({
                 >
                   {copied === "short" ? "Zkopírováno ✓" : "Kopírovat link"}
                 </Button>
-                <span className="data text-[10px] uppercase tracking-widest text-ink-muted">
-                  {shortLink.length} znaků
-                </span>
+                <button
+                  onClick={handleRecreateShort}
+                  disabled={shortBusy}
+                  className="
+                    data text-[10px] uppercase tracking-widest
+                    text-ink-muted hover:text-bad transition-colors
+                    ml-auto px-2 py-2 min-h-[36px]
+                  "
+                >
+                  ↻ vytvořit nový
+                </button>
               </div>
             </>
           ) : (

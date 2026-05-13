@@ -16,7 +16,8 @@ import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { useCloudAuth } from "@/lib/cloudAuth";
 import { useCombinedContent } from "@/lib/data";
-import { createCollectionShare } from "@/lib/shareApi";
+import { useAppStore } from "@/lib/store";
+import { createCollectionShare, fetchShare, revokeShare } from "@/lib/shareApi";
 
 interface Props {
   open: boolean;
@@ -55,17 +56,42 @@ function ShareBody({
 }) {
   const isCloudUser = useCloudAuth((s) => s.status === "signed-in");
   const { cards: allCardsUniverse } = useCombinedContent();
+  const sourceKey = `col:${collection.id}`;
+  const knownShareId = useAppStore((s) => s.shareLinks[sourceKey]);
+  const setShareLinkStore = useAppStore((s) => s.setShareLink);
+  const clearShareLinkStore = useAppStore((s) => s.clearShareLink);
+
   const [shareLink, setShareLink] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  // Re-key effectively resets, but explicit cleanup on collection change.
+  // Resolve the stored share id to a full URL. We optimistically show
+  // the URL immediately based on the local mapping; in parallel we
+  // verify on the server. On confirmed 404, we drop the stale entry so
+  // the user can create a fresh one.
   useEffect(() => {
-    setShareLink(null);
     setError(null);
     setCopied(false);
-  }, [collection.id]);
+    if (!knownShareId) {
+      setShareLink(null);
+      return;
+    }
+    setShareLink(`${window.location.origin}/s/${knownShareId}`);
+    let cancelled = false;
+    void (async () => {
+      const r = await fetchShare(knownShareId);
+      if (cancelled) return;
+      if (!r.ok && r.code === "not_found") {
+        // Share was revoked elsewhere — drop local mapping silently.
+        clearShareLinkStore(sourceKey);
+        setShareLink(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [knownShareId, sourceKey, clearShareLinkStore]);
 
   if (!isCloudUser) {
     return (
@@ -96,9 +122,36 @@ function ShareBody({
     setBusy(false);
     if (r.ok) {
       setShareLink(r.data.url);
+      setShareLinkStore(sourceKey, r.data.id);
     } else {
       setError(r.message);
     }
+  };
+
+  const handleRecreate = async () => {
+    if (!knownShareId) {
+      void handleCreate();
+      return;
+    }
+    if (
+      !confirm(
+        "Zrušit současný link a vytvořit nový?\n\nStarý odkaz přestane fungovat — komu už ho někdo otevřel, ten má kopii lokálně, ta zůstane.",
+      )
+    ) {
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    // Best-effort revoke; even on failure we'll mint a fresh one.
+    const revoke = await revokeShare(knownShareId);
+    if (!revoke.ok) {
+      // If revoke failed because the row no longer exists, that's fine.
+      // Otherwise still proceed — orphaning the old row is acceptable.
+    }
+    clearShareLinkStore(sourceKey);
+    setShareLink(null);
+    setBusy(false);
+    void handleCreate();
   };
 
   const handleCopy = async () => {
@@ -121,10 +174,10 @@ function ShareBody({
       {shareLink ? (
         <>
           <p className="prose text-sm text-ink-dim max-w-prose">
-            Bundle decků + metadata uložené. Otevře kdokoliv (i bez účtu),
-            naimportuje{" "}
-            <span className="data">vše additivně</span> — recipient
-            neztrácí žádné svoje decky.
+            Tahle kolekce má svůj permanentní link. Pošli ho komukoli —
+            otevře náhled, naimportuje{" "}
+            <span className="data">vše additivně</span>. Žádná jeho data
+            se nepřepíšou.
           </p>
           <input
             type="text"
@@ -140,7 +193,22 @@ function ShareBody({
             <Button onClick={onClose} variant="ghost" size="sm">
               Hotovo
             </Button>
+            <button
+              onClick={handleRecreate}
+              disabled={busy}
+              className="
+                data text-[10px] uppercase tracking-widest
+                text-ink-muted hover:text-bad transition-colors
+                ml-auto px-2 py-2 min-h-[36px]
+              "
+            >
+              ↻ vytvořit nový
+            </button>
           </div>
+          <p className="prose text-xs text-ink-muted">
+            Pro odebrání linku úplně jdi do{" "}
+            <span className="data">Settings → Sdílené decky & kolekce</span>.
+          </p>
         </>
       ) : (
         <>

@@ -41,6 +41,11 @@ interface AppState {
   user: UserState;
   deadlines: Deadline[];
   collections: Collection[];
+  /** Persistent mapping source → share id. Keys are "deck:<id>" or
+   *  "col:<id>". Lets us reuse a single short link per source instead
+   *  of spawning a fresh one on every "Sdílet" click. Cleared when the
+   *  user revokes from Settings → Sdílené decky. */
+  shareLinks: Record<string, string>;
 
   /** Transient: whether the walkthrough is open right now. Not persisted —
    *  the user shouldn't be re-greeted by the tour on every reload. */
@@ -89,6 +94,14 @@ interface AppState {
   ) => void;
   deleteCollection: (id: CollectionId) => void;
 
+  /* share link bookkeeping (one short link per source) */
+  setShareLink: (sourceKey: string, shareId: string) => void;
+  clearShareLink: (sourceKey: string) => void;
+  /** Find the source key whose share id matches and clear it. Used by
+   *  the Settings revoke flow which knows the shareId but not the
+   *  source it points back to. No-op if no match. */
+  clearShareLinkByShareId: (shareId: string) => void;
+
   /* user prefs */
   updateUser: (patch: Partial<UserState>) => void;
 
@@ -122,6 +135,7 @@ export const useAppStore = create<AppState>()(
       user: emptyUser,
       deadlines: defaultDeadlines,
       collections: [],
+      shareLinks: {},
       tourOpen: false,
       openTour: () => set({ tourOpen: true }),
       closeTour: () => set({ tourOpen: false }),
@@ -168,10 +182,19 @@ export const useAppStore = create<AppState>()(
       },
 
       deleteDeck: (id) => {
-        set((s) => ({
-          userDecks: s.userDecks.filter((d) => d.id !== id),
-          userCards: s.userCards.filter((c) => c.deckId !== id),
-        }));
+        set((s) => {
+          const key = `deck:${id}`;
+          const next: Partial<AppState> = {
+            userDecks: s.userDecks.filter((d) => d.id !== id),
+            userCards: s.userCards.filter((c) => c.deckId !== id),
+          };
+          if (key in s.shareLinks) {
+            const cleaned = { ...s.shareLinks };
+            delete cleaned[key];
+            next.shareLinks = cleaned;
+          }
+          return next;
+        });
       },
 
       addCards: (deckId, parsed) => {
@@ -264,7 +287,47 @@ export const useAppStore = create<AppState>()(
       },
 
       deleteCollection: (id) => {
-        set((s) => ({ collections: s.collections.filter((c) => c.id !== id) }));
+        set((s) => {
+          // Also drop any "col:<id>" share-link mapping so deleting a
+          // collection that was shared doesn't leave a dangling entry.
+          const key = `col:${id}`;
+          if (!(key in s.shareLinks)) {
+            return { collections: s.collections.filter((c) => c.id !== id) };
+          }
+          const next = { ...s.shareLinks };
+          delete next[key];
+          return {
+            collections: s.collections.filter((c) => c.id !== id),
+            shareLinks: next,
+          };
+        });
+      },
+
+      setShareLink: (sourceKey, shareId) => {
+        set((s) => ({
+          shareLinks: { ...s.shareLinks, [sourceKey]: shareId },
+        }));
+      },
+
+      clearShareLink: (sourceKey) => {
+        set((s) => {
+          if (!(sourceKey in s.shareLinks)) return s;
+          const next = { ...s.shareLinks };
+          delete next[sourceKey];
+          return { shareLinks: next };
+        });
+      },
+
+      clearShareLinkByShareId: (shareId) => {
+        set((s) => {
+          const entry = Object.entries(s.shareLinks).find(
+            ([, v]) => v === shareId,
+          );
+          if (!entry) return s;
+          const next = { ...s.shareLinks };
+          delete next[entry[0]];
+          return { shareLinks: next };
+        });
       },
 
       updateUser: (patch) => {
@@ -280,6 +343,7 @@ export const useAppStore = create<AppState>()(
           user: emptyUser,
           deadlines: defaultDeadlines,
           collections: [],
+          shareLinks: {},
         }),
     }),
     {

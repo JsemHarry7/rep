@@ -280,5 +280,6 @@ function takeSnapshotForBeacon() {
     user: s.user,
     deadlines: s.deadlines,
     collections: s.collections,
+    shareLinks: s.shareLinks,
   };
 }

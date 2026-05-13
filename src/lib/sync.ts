@@ -32,6 +32,7 @@ interface Snapshot {
   user: UserState;
   deadlines: Deadline[];
   collections: Collection[];
+  shareLinks: Record<string, string>;
 }
 
 export interface SyncResult {
@@ -59,6 +60,7 @@ function takeSnapshot(): Snapshot {
     user: s.user,
     deadlines: s.deadlines,
     collections: s.collections,
+    shareLinks: s.shareLinks,
   };
 }
 
@@ -74,6 +76,7 @@ function applySnapshot(snap: Partial<Snapshot>) {
       user: { ...cur.user, ...(snap.user ?? {}) },
       deadlines: snap.deadlines ?? [],
       collections: snap.collections ?? [],
+      shareLinks: snap.shareLinks ?? {},
     });
   } finally {
     applyingRemote = false;

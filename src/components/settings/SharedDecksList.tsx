@@ -17,10 +17,12 @@ import {
   type SharedDeckSummary,
 } from "@/lib/shareApi";
 import { useCloudAuth } from "@/lib/cloudAuth";
+import { useAppStore } from "@/lib/store";
 import { Button } from "@/components/ui/Button";
 
 export function SharedDecksList() {
   const status = useCloudAuth((s) => s.status);
+  const clearShareLinkByShareId = useAppStore((s) => s.clearShareLinkByShareId);
   const [items, setItems] = useState<SharedDeckSummary[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -57,6 +59,9 @@ export function SharedDecksList() {
     const r = await revokeShare(item.id);
     setBusy(false);
     if (r.ok) {
+      // Also drop the local source→shareId mapping so the Sdílet
+      // dialog stops showing this revoked link the next time it opens.
+      clearShareLinkByShareId(item.id);
       await reload();
     } else {
       setError(r.message);
