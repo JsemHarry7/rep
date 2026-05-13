@@ -46,21 +46,24 @@ export function DeckDetail({
     return { ...m, due, struggling };
   }, [cards, srsState]);
 
+  // Současný stav karet (last rating per card) — ne lifetime aggregace.
+  // Když uživatel naseká 31 again a pak 32 easy, panel má ukazovat "32
+  // umím / pár ještě ne", ne "tady je hřbitov tvých minulých flopů".
   const ratingCounts = useMemo(() => {
     const cardIds = new Set(cards.map((c) => c.id));
+    const lastByCard = new Map<string, Rating>();
+    for (const r of reviews) {
+      if (!cardIds.has(r.cardId)) continue;
+      lastByCard.set(r.cardId, r.rating);
+    }
     const counts: Record<Rating, number> = {
       again: 0,
       hard: 0,
       good: 0,
       easy: 0,
     };
-    let total = 0;
-    for (const r of reviews) {
-      if (!cardIds.has(r.cardId)) continue;
-      counts[r.rating]++;
-      total++;
-    }
-    return { counts, total };
+    for (const last of lastByCard.values()) counts[last]++;
+    return { counts, total: lastByCard.size };
   }, [cards, reviews]);
 
   const modes: Array<{
@@ -173,7 +176,7 @@ export function DeckDetail({
           </h2>
           <span className="data text-[10px] uppercase tracking-widest text-ink-muted">
             {ratingCounts.total > 0
-              ? `${ratingCounts.total} review`
+              ? `${ratingCounts.total} ${ratingCounts.total === 1 ? "karta" : ratingCounts.total < 5 ? "karty" : "karet"} · stav teď`
               : "zatím žádné review"}
           </span>
         </div>
